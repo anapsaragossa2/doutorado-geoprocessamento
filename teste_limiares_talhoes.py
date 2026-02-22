@@ -17,6 +17,18 @@ def garantir_drive_montado() -> str:
     )
 
 
+def parse_thresholds(default):
+    csv = os.environ.get('THRESHOLDS_CSV', '')
+    if not csv.strip():
+        return default
+    vals = []
+    for x in csv.split(','):
+        x = x.strip()
+        if x:
+            vals.append(float(x))
+    return vals if vals else default
+
+
 pasta_base = garantir_drive_montado()
 modelo_path = os.path.join(pasta_base, 'Modelo_UNet_Jussara_2025_FINAL_v2.keras')
 if not os.path.exists(modelo_path):
@@ -35,9 +47,10 @@ KERNEL_SIZE = 128
 READ_SIZE = 129
 INPUT_BANDS = ['R_1', 'NIR_1', 'NDVI_1', 'R_2', 'NIR_2', 'NDVI_2']
 LABEL_BAND = 'label_chip'
-BATCH_SIZE = 16
-N_BATCHES = 20
-THRESHOLDS = [0.30, 0.40, 0.50, 0.60, 0.70]
+BATCH_SIZE = int(os.environ.get('BATCH_SIZE_SWEEP', '16'))
+N_BATCHES = int(os.environ.get('N_BATCHES_SWEEP', '20'))
+THRESHOLDS = parse_thresholds([0.30, 0.40, 0.50, 0.60, 0.70])
+OUTPUT_FILENAME = os.environ.get('SWEEP_OUTPUT_FILENAME', 'resultado_teste_limiares.txt')
 
 
 def parse_fast(example_proto):
@@ -109,7 +122,7 @@ for thr in THRESHOLDS:
 print('\n🏆 Melhor limiar (por F1):')
 print(best)
 
-out_path = os.path.join(pasta_base, 'resultado_teste_limiares.txt')
+out_path = os.path.join(pasta_base, OUTPUT_FILENAME)
 with open(out_path, 'w', encoding='utf-8') as f:
     f.write('thr\tprecision\trecall\tf1\tiou\n')
     for thr in THRESHOLDS:

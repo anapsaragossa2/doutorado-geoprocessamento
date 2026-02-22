@@ -4,44 +4,42 @@ Código para retreinamento/validação da U-Net no Colab com foco em identificar
 
 ## Fluxo único no mesmo notebook (sequencial)
 
-Os dois notebooks agora estão organizados com **todos os testes em sequência**:
+Os dois notebooks estão com o pipeline completo:
 
 - `treinamento_unet_colab.ipynb`
 - `Script_Doutorando_v3_15_01_26.ipynb`
 
-Ordem no notebook:
-1. Instala dependências
-2. Monta Drive
-3. Treino
-4. Gráfico de evolução do treino (loss / IoU / Dice)
-5. Prova real visual
-6. Teste de limiares (threshold sweep)
-7. Resumo final do threshold
+Ordem principal no notebook:
+1. Treino
+2. Prova real visual
+3. **Pós-processamento da máscara** (limpeza)
+4. Sweep grosso de limiares
+5. **Sweep fino automático** ao redor do melhor limiar
+6. Resumo final (tabela + gráfico + threshold recomendado)
 
-Assim você acompanha toda a evolução no mesmo arquivo.
+## Novos blocos adicionados
 
-## O que o último teste de limiares revelou
+### 1) Pós-processamento (limpeza de máscara)
+Script: `pos_processamento_mascara.py`
 
-Resultado informado:
+- aplica abertura/fechamento morfológico;
+- remove componentes pequenos (`MIN_COMPONENT_SIZE`);
+- compara métricas antes/depois (`precision`, `recall`, `f1`, `iou`);
+- salva imagem comparativa em:
+  - `/content/drive/MyDrive/Tese_IA_Jussara/comparativo_pos_processamento.png`
 
-- `thr=0.30` → `precision=0.6933`, `recall=0.6358`, `f1=0.6633`, `iou=0.4962`
-- melhor limiar por F1: **`0.30`**
+### 2) Sweep fino automático
+Script base: `teste_limiares_talhoes.py`
 
-Interpretação prática:
-
-- `0.30` foi o melhor compromisso entre precisão e recall para este conjunto.
-- o script de validação/inferência já foi ajustado para usar `THRESHOLD_INFERENCIA = 0.30`.
-
-## Artefatos gerados no Drive
-
-- Modelo final: `/content/drive/MyDrive/Tese_IA_Jussara/Modelo_UNet_Jussara_2025_FINAL_v2.keras`
-- Checkpoint best: `/content/drive/MyDrive/Tese_IA_Jussara/Modelo_Checkpoint_best.keras`
-- Histórico treino: `/content/drive/MyDrive/Tese_IA_Jussara/historico_treinamento.csv`
-- Prova real: `/content/drive/MyDrive/Tese_IA_Jussara/prova_real_validacao.png`
-- Sweep de limiares: `/content/drive/MyDrive/Tese_IA_Jussara/resultado_teste_limiares.txt`
+- faz sweep grosso e detecta `melhor_thr`;
+- gera automaticamente um sweep fino ao redor do melhor valor;
+- salva dois relatórios:
+  - `/content/drive/MyDrive/Tese_IA_Jussara/resultado_teste_limiares.txt`
+  - `/content/drive/MyDrive/Tese_IA_Jussara/resultado_teste_limiares_fino.txt`
 
 ## Scripts Python
 
 - `treinamento_seguro_unet.py`
 - `validacao_visual_modelo.py`
 - `teste_limiares_talhoes.py`
+- `pos_processamento_mascara.py`
