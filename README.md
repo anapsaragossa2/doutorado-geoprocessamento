@@ -28,6 +28,23 @@ A validação salva a figura em:
 
 E o notebook tem uma célula final para exibir essa imagem automaticamente.
 
+## Próximo ponto de teste: limiar de decisão
+
+Adicionado script de teste de limiares:
+
+- `teste_limiares_talhoes.py`
+
+Ele testa thresholds (0.30, 0.40, 0.50, 0.60, 0.70) e reporta:
+
+- `precision`
+- `recall`
+- `f1`
+- `iou`
+
+Também salva o relatório em:
+
+`/content/drive/MyDrive/Tese_IA_Jussara/resultado_teste_limiares.txt`
+
 ## O que ficou mais rigoroso no treino
 
 - Normalização por banda em cada chip.
@@ -41,6 +58,7 @@ E o notebook tem uma célula final para exibir essa imagem automaticamente.
 
 - `treinamento_seguro_unet.py`
 - `validacao_visual_modelo.py`
+- `teste_limiares_talhoes.py`
 
 ## Pasta padrão
 
