@@ -11,18 +11,22 @@ Código restaurado para o formato original de retreinamento/validação no Colab
 
 ## Erro comum no Colab (repo privado)
 
-Se o clone falhar no Colab, normalmente é porque o repositório está **privado**.
-Nesse caso, no notebook preencha:
+Se aparecer erro como:
+
+`fatal: could not read Username for 'https://github.com': No such device or address`
+
+o notebook agora tenta:
+
+1. clone público primeiro;
+2. se detectar erro de autenticação, solicita token via `getpass()` e tenta novamente.
+
+Você só precisa conferir:
 
 - `GITHUB_USER`
 - `REPO_NAME`
 - `REPO_BRANCH`
-- `GITHUB_TOKEN` (token com permissão de leitura)
 
-Também confira se a branch escolhida realmente contém os arquivos:
-
-- `treinamento_seguro_unet.py`
-- `validacao_visual_modelo.py`
+E informar token do GitHub (read access) quando solicitado.
 
 ## Pasta padrão (como no código original)
 
