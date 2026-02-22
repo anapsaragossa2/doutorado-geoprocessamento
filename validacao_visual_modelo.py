@@ -82,5 +82,8 @@ for i in range(n_show):
     if i == 0:
         plt.title('Predição (>0.5)')
 
+saida_fig = os.path.join(pasta_base, 'prova_real_validacao.png')
 plt.tight_layout()
+plt.savefig(saida_fig, dpi=200, bbox_inches='tight')
 plt.show()
+print(f'🖼️ Prova real salva em: {saida_fig}')

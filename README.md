@@ -9,6 +9,14 @@ Use os notebooks abaixo. Eles gravam os scripts localmente e executam treino + v
 - `treinamento_unet_colab.ipynb`
 - `Script_Doutorando_v3_15_01_26.ipynb`
 
+## Prova real no Colab
+
+A validação agora salva a figura da prova real em:
+
+`/content/drive/MyDrive/Tese_IA_Jussara/prova_real_validacao.png`
+
+E o notebook já tem uma célula final para exibir essa imagem automaticamente.
+
 ## O que ficou mais rigoroso no treino
 
 - Normalização por banda em cada chip.
