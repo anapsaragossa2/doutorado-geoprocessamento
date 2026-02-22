@@ -1,15 +1,24 @@
+import os
+os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '2')
+
+import glob
 import tensorflow as tf
 from tensorflow.keras import layers, models, callbacks
-import os
-import glob
-from google.colab import drive
 
-# 1. Montar Drive (Obrigatório)
-if not os.path.exists('/content/drive'):
-    drive.mount('/content/drive')
 
-# --- CONFIGURAÇÕES ---
-pasta_base = '/content/drive/MyDrive/Tese_IA_Jussara'
+def garantir_drive_montado() -> str:
+    pasta_base = '/content/drive/MyDrive/Tese_IA_Jussara'
+    if os.path.exists('/content/drive'):
+        return pasta_base
+
+    raise RuntimeError(
+        "Drive não montado. No Colab, execute antes: \n"
+        "from google.colab import drive\n"
+        "drive.mount('/content/drive')"
+    )
+
+
+pasta_base = garantir_drive_montado()
 
 KERNEL_SIZE = 128
 READ_SIZE = 129
@@ -169,7 +178,7 @@ cbs = [
 ]
 
 print("🔥 Iniciando Retreinamento Rigoroso (foco em talhões)...")
-history = model.fit(
+model.fit(
     train_ds,
     validation_data=val_ds,
     epochs=EPOCHS,

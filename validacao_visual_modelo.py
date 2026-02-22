@@ -1,14 +1,25 @@
+import os
+os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '2')
+
+import glob
 import tensorflow as tf
 import matplotlib.pyplot as plt
-import os
-import glob
-from google.colab import drive
 
-if not os.path.exists('/content/drive'):
-    drive.mount('/content/drive')
+
+def garantir_drive_montado() -> str:
+    pasta_base = '/content/drive/MyDrive/Tese_IA_Jussara'
+    if os.path.exists('/content/drive'):
+        return pasta_base
+
+    raise RuntimeError(
+        "Drive não montado. No Colab, execute antes: \n"
+        "from google.colab import drive\n"
+        "drive.mount('/content/drive')"
+    )
+
 
 print('--- INICIANDO PROVA REAL ---')
-pasta_base = '/content/drive/MyDrive/Tese_IA_Jussara'
+pasta_base = garantir_drive_montado()
 caminho_modelo = os.path.join(pasta_base, 'Modelo_UNet_Jussara_2025_FINAL_v2.keras')
 
 if not os.path.exists(caminho_modelo):

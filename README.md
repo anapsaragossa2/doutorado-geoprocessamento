@@ -9,13 +9,24 @@ Use os notebooks abaixo. Eles gravam os scripts localmente e executam treino + v
 - `treinamento_unet_colab.ipynb`
 - `Script_Doutorando_v3_15_01_26.ipynb`
 
+## Importante (erro de mount ao usar `!python`)
+
+Antes de executar `!python treinamento_seguro_unet.py` e `!python validacao_visual_modelo.py`, monte o Drive em uma célula do notebook:
+
+```python
+from google.colab import drive
+drive.mount('/content/drive')
+```
+
+Os notebooks já trazem essa célula pronta.
+
 ## Prova real no Colab
 
-A validação agora salva a figura da prova real em:
+A validação salva a figura em:
 
 `/content/drive/MyDrive/Tese_IA_Jussara/prova_real_validacao.png`
 
-E o notebook já tem uma célula final para exibir essa imagem automaticamente.
+E o notebook tem uma célula final para exibir essa imagem automaticamente.
 
 ## O que ficou mais rigoroso no treino
 
@@ -34,5 +45,3 @@ E o notebook já tem uma célula final para exibir essa imagem automaticamente.
 ## Pasta padrão
 
 `/content/drive/MyDrive/Tese_IA_Jussara`
-
-> Execute no Google Colab com o Drive montado.
