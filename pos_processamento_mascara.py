@@ -137,3 +137,12 @@ out_img = os.path.join(pasta_base, 'comparativo_pos_processamento.png')
 plt.savefig(out_img, dpi=200, bbox_inches='tight')
 plt.show()
 print(f'🖼️ Comparativo salvo em: {out_img}')
+
+out_metrics = os.path.join(pasta_base, 'resultado_pos_processamento.txt')
+with open(out_metrics, 'w', encoding='utf-8') as f:
+    f.write('stage\tprecision\trecall\tf1\tiou\n')
+    f.write(f'antes\t{p_raw:.6f}\t{r_raw:.6f}\t{f_raw:.6f}\t{i_raw:.6f}\n')
+    f.write(f'depois\t{p_cln:.6f}\t{r_cln:.6f}\t{f_cln:.6f}\t{i_cln:.6f}\n')
+    f.write(f'threshold={THRESHOLD:.2f}\n')
+    f.write(f'min_component_size={MIN_SIZE}\n')
+print(f'📝 Métricas do pós-processamento salvas em: {out_metrics}')

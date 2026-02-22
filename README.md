@@ -57,3 +57,17 @@ Script base: `teste_limiares_talhoes.py`
 - `validacao_visual_modelo.py`
 - `teste_limiares_talhoes.py`
 - `pos_processamento_mascara.py`
+
+
+## Bloco único final no notebook
+
+A célula final do notebook agora consolida em um único bloco:
+
+- métricas antes/depois do pós-processamento (lidas de `resultado_pos_processamento.txt`);
+- comparação visual lado a lado (`comparativo_pos_processamento.png`);
+- recomendação automática do melhor conjunto (`threshold_inferencia`, uso de pós-processamento e `min_component_size`) salva em `recomendacao_pipeline.txt`.
+
+Arquivos gerados no Drive:
+
+- `/content/drive/MyDrive/Tese_IA_Jussara/resultado_pos_processamento.txt`
+- `/content/drive/MyDrive/Tese_IA_Jussara/recomendacao_pipeline.txt`
