@@ -6,6 +6,20 @@ Scripts de apoio para retreinamento e validação visual de uma U-Net para segme
 
 - `treinamento_seguro_unet.py`: pipeline de retreinamento com checkpoints, retomada automática e callbacks de segurança.
 - `validacao_visual_modelo.py`: prova de fogo para carregar o modelo salvo e visualizar predições vs. gabarito.
+- `treinamento_unet_colab.ipynb`: notebook pronto para abrir no Colab e executar treino + validação.
+
+## Não aparece no Colab (GitHub)?
+
+No seletor do Colab, ele lista principalmente arquivos **`.ipynb`**. Como antes só tinha `.py`, podia aparecer “Nenhum resultado”.
+
+Agora use o notebook:
+
+- `treinamento_unet_colab.ipynb`
+
+Dica no Colab:
+1. Em **Abrir notebook > GitHub**, selecione o repositório.
+2. Troque para a branch correta.
+3. Procure por `treinamento_unet_colab.ipynb`.
 
 ## Em qual pasta o modelo é salvo?
 
