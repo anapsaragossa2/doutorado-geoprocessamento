@@ -13,20 +13,21 @@ Código restaurado para o formato original de retreinamento/validação no Colab
 
 Se aparecer erro como:
 
-`fatal: could not read Username for 'https://github.com': No such device or address`
+- `fatal: could not read Username for 'https://github.com': No such device or address`
+- `remote: Write access to repository not granted.`
+- `The requested URL returned error: 403`
 
-o notebook agora tenta:
+os notebooks agora tentam clone público primeiro e, se necessário, pedem:
 
-1. clone público primeiro;
-2. se detectar erro de autenticação, solicita token via `getpass()` e tenta novamente.
+- `GITHUB_AUTH_USER` (usuário que **gerou o token**)
+- `GITHUB_TOKEN`
 
-Você só precisa conferir:
+### Checklist para erro 403
 
-- `GITHUB_USER`
-- `REPO_NAME`
-- `REPO_BRANCH`
-
-E informar token do GitHub (read access) quando solicitado.
+- Se token classic: habilite escopo `repo`.
+- Se fine-grained: acesso ao repositório + permissão `Contents: Read-only`.
+- Se organização usa SSO: autorize o token para a organização.
+- Confirme `GITHUB_OWNER`, `REPO_NAME` e `REPO_BRANCH`.
 
 ## Pasta padrão (como no código original)
 
