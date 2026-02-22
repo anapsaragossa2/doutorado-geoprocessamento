@@ -64,7 +64,7 @@ KERNEL_SIZE = 128
 READ_SIZE = 129
 INPUT_BANDS = ['R_1', 'NIR_1', 'NDVI_1', 'R_2', 'NIR_2', 'NDVI_2']
 LABEL_BAND = 'label_chip'
-THRESHOLD = float(os.environ.get('THRESHOLD_INFERENCIA', '0.30'))
+THRESHOLD = float(os.environ.get('THRESHOLD_INFERENCIA', '0.36'))
 MIN_SIZE = int(os.environ.get('MIN_COMPONENT_SIZE', '100'))
 
 
