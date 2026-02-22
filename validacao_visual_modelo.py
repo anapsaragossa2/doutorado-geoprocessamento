@@ -6,23 +6,12 @@ import os
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
-PASTA_BASE = os.environ.get("TESE_IA_BASE_DIR", "/content/drive/MyDrive/Tese_IA_Jussara")
+PASTA_BASE = os.environ.get("TESE_IA_BASE_DIR", "/workspace/doutorado-geoprocessamento")
 CAMINHO_MODELO = os.path.join(PASTA_BASE, "Modelo_UNet_Jussara_2025_FINAL_v2.keras")
 KERNEL_SIZE = 128
 READ_SIZE = 129
 INPUT_BANDS = ["R_1", "NIR_1", "NDVI_1", "R_2", "NIR_2", "NDVI_2"]
 LABEL_BAND = "label_chip"
-
-
-def montar_drive_se_necessario() -> None:
-    if os.path.exists("/content/drive"):
-        return
-    try:
-        from google.colab import drive  # type: ignore
-
-        drive.mount("/content/drive")
-    except Exception:
-        print("ℹ️ /content/drive não está disponível. Usando caminho local configurado.")
 
 
 def parse_fast(example_proto: tf.Tensor):
@@ -47,8 +36,6 @@ def parse_fast(example_proto: tf.Tensor):
 
 
 def main() -> None:
-    montar_drive_se_necessario()
-
     print("--- INICIANDO PROVA REAL ---")
     print(f"📁 Pasta base configurada: {PASTA_BASE}")
     print(f"📦 Caminho esperado do modelo: {CAMINHO_MODELO}")

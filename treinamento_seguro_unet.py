@@ -1,10 +1,9 @@
 """Retreinamento seguro de U-Net para segmentação de pivôs.
 
-Uso no Colab:
+Uso:
     python treinamento_seguro_unet.py
 
 O script:
-- monta o Google Drive (quando disponível);
 - localiza automaticamente TFRecord mais adequado;
 - cria pipeline otimizado com tf.data;
 - salva checkpoints (último e melhor modelo);
@@ -21,9 +20,7 @@ from tensorflow.keras import callbacks, layers, models
 
 @dataclass
 class Config:
-    pasta_base: str = os.environ.get(
-        "TESE_IA_BASE_DIR", "/content/drive/MyDrive/Tese_IA_Jussara"
-    )
+    pasta_base: str = os.environ.get("TESE_IA_BASE_DIR", "/workspace/doutorado-geoprocessamento")
     kernel_size: int = 128
     read_size: int = 129
     batch_size: int = 32
@@ -38,18 +35,6 @@ class Config:
         "NDVI_2",
     )
     label_band: str = "label_chip"
-
-
-def montar_drive_se_necessario() -> None:
-    if os.path.exists("/content/drive"):
-        return
-
-    try:
-        from google.colab import drive  # type: ignore
-
-        drive.mount("/content/drive")
-    except Exception:
-        print("ℹ️ /content/drive não está disponível. Usando caminho local configurado.")
 
 
 def localizar_tfrecord(pasta_base: str) -> str:
@@ -117,13 +102,9 @@ def build_unet(input_shape: tuple[int, int, int]) -> tf.keras.Model:
 
 def main() -> None:
     cfg = Config()
-    montar_drive_se_necessario()
 
     print(f"📁 Pasta base configurada: {cfg.pasta_base}")
-    if not os.path.exists(cfg.pasta_base):
-        raise FileNotFoundError(
-            "Pasta base não existe. Defina TESE_IA_BASE_DIR ou ajuste Config.pasta_base."
-        )
+    os.makedirs(cfg.pasta_base, exist_ok=True)
 
     caminho_arquivo = localizar_tfrecord(cfg.pasta_base)
     print(f"📂 Lendo dados de: {caminho_arquivo}")

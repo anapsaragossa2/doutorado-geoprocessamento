@@ -9,9 +9,9 @@ Scripts de apoio para retreinamento e validação visual de uma U-Net para segme
 
 ## Em qual pasta o modelo é salvo?
 
-Por padrão, os scripts salvam e leem arquivos em:
+Agora o padrão está configurado para salvar **aqui no projeto**:
 
-`/content/drive/MyDrive/Tese_IA_Jussara`
+`/workspace/doutorado-geoprocessamento`
 
 Arquivos gerados no treino:
 
@@ -20,18 +20,18 @@ Arquivos gerados no treino:
 - `historico_treinamento.csv`
 - `Modelo_UNet_Jussara_2025_FINAL_v2.keras`
 
-Você pode mudar a pasta base definindo a variável de ambiente `TESE_IA_BASE_DIR`.
+Se quiser trocar a pasta base, use a variável de ambiente `TESE_IA_BASE_DIR`.
 
 Exemplo:
 
 ```bash
-export TESE_IA_BASE_DIR="/content/drive/MyDrive/Tese_IA_Jussara"
+export TESE_IA_BASE_DIR="/caminho/que/voce/quiser"
 python treinamento_seguro_unet.py
 ```
 
-## Uso no Google Colab
+## Uso
 
-1. Suba os scripts no notebook/ambiente.
+1. Deixe o `.tfrecord` dentro da pasta base (padrão: `/workspace/doutorado-geoprocessamento`).
 2. Execute o retreinamento:
 
 ```bash
