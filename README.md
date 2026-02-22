@@ -20,6 +20,18 @@ Ordem no notebook:
 
 Assim você acompanha toda a evolução no mesmo arquivo.
 
+## O que o último teste de limiares revelou
+
+Resultado informado:
+
+- `thr=0.30` → `precision=0.6933`, `recall=0.6358`, `f1=0.6633`, `iou=0.4962`
+- melhor limiar por F1: **`0.30`**
+
+Interpretação prática:
+
+- `0.30` foi o melhor compromisso entre precisão e recall para este conjunto.
+- o script de validação/inferência já foi ajustado para usar `THRESHOLD_INFERENCIA = 0.30`.
+
 ## Artefatos gerados no Drive
 
 - Modelo final: `/content/drive/MyDrive/Tese_IA_Jussara/Modelo_UNet_Jussara_2025_FINAL_v2.keras`

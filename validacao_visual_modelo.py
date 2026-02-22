@@ -63,7 +63,9 @@ def parse_fast(example_proto):
 dataset = tf.data.TFRecordDataset(caminho_dados, compression_type='GZIP').map(parse_fast).batch(10).take(1)
 imgs, labels = next(iter(dataset))
 preds = model.predict(imgs, verbose=0)
-preds_bin = (preds > 0.5).astype('float32')
+THRESHOLD_INFERENCIA = 0.30
+print(f'🎯 Limiar de inferência aplicado: {THRESHOLD_INFERENCIA:.2f}')
+preds_bin = (preds > THRESHOLD_INFERENCIA).astype('float32')
 
 intersection = (preds_bin * labels.numpy()).sum(axis=(1, 2, 3))
 union = ((preds_bin + labels.numpy()) > 0).sum(axis=(1, 2, 3))
@@ -91,7 +93,7 @@ for i in range(n_show):
     plt.imshow(preds_bin[i][:, :, 0], cmap='viridis')
     plt.axis('off')
     if i == 0:
-        plt.title('Predição (>0.5)')
+        plt.title(f'Predição (>{THRESHOLD_INFERENCIA:.2f})')
 
 saida_fig = os.path.join(pasta_base, 'prova_real_validacao.png')
 plt.tight_layout()
