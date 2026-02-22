@@ -6,7 +6,7 @@ import os
 import matplotlib.pyplot as plt
 import tensorflow as tf
 
-PASTA_BASE = "/content/drive/MyDrive/Tese_IA_Jussara"
+PASTA_BASE = os.environ.get("TESE_IA_BASE_DIR", "/content/drive/MyDrive/Tese_IA_Jussara")
 CAMINHO_MODELO = os.path.join(PASTA_BASE, "Modelo_UNet_Jussara_2025_FINAL_v2.keras")
 KERNEL_SIZE = 128
 READ_SIZE = 129
@@ -17,9 +17,12 @@ LABEL_BAND = "label_chip"
 def montar_drive_se_necessario() -> None:
     if os.path.exists("/content/drive"):
         return
-    from google.colab import drive  # type: ignore
+    try:
+        from google.colab import drive  # type: ignore
 
-    drive.mount("/content/drive")
+        drive.mount("/content/drive")
+    except Exception:
+        print("ℹ️ /content/drive não está disponível. Usando caminho local configurado.")
 
 
 def parse_fast(example_proto: tf.Tensor):
@@ -47,8 +50,13 @@ def main() -> None:
     montar_drive_se_necessario()
 
     print("--- INICIANDO PROVA REAL ---")
+    print(f"📁 Pasta base configurada: {PASTA_BASE}")
+    print(f"📦 Caminho esperado do modelo: {CAMINHO_MODELO}")
+
     if not os.path.exists(CAMINHO_MODELO):
-        raise FileNotFoundError(f"Modelo não encontrado: {CAMINHO_MODELO}")
+        raise FileNotFoundError(
+            "Modelo não encontrado. Verifique TESE_IA_BASE_DIR e se o treino salvou o arquivo final."
+        )
 
     print(f"✅ Arquivo do modelo encontrado: {CAMINHO_MODELO}")
     model = tf.keras.models.load_model(CAMINHO_MODELO)
@@ -58,6 +66,7 @@ def main() -> None:
     if not busca_dados:
         raise FileNotFoundError("Nenhum TFRecord MASSIVE encontrado para validação visual.")
     caminho_dados = sorted(busca_dados, key=os.path.getmtime, reverse=True)[0]
+    print(f"📂 TFRecord usado na validação: {caminho_dados}")
 
     dataset = tf.data.TFRecordDataset(caminho_dados, compression_type="GZIP")
     dataset = dataset.map(parse_fast, num_parallel_calls=tf.data.AUTOTUNE).batch(10).take(1)

@@ -21,7 +21,9 @@ from tensorflow.keras import callbacks, layers, models
 
 @dataclass
 class Config:
-    pasta_base: str = "/content/drive/MyDrive/Tese_IA_Jussara"
+    pasta_base: str = os.environ.get(
+        "TESE_IA_BASE_DIR", "/content/drive/MyDrive/Tese_IA_Jussara"
+    )
     kernel_size: int = 128
     read_size: int = 129
     batch_size: int = 32
@@ -46,11 +48,8 @@ def montar_drive_se_necessario() -> None:
         from google.colab import drive  # type: ignore
 
         drive.mount("/content/drive")
-    except Exception as exc:  # fora do Colab
-        raise RuntimeError(
-            "Não foi possível montar /content/drive. Execute no Colab "
-            "ou ajuste Config.pasta_base para um caminho local."
-        ) from exc
+    except Exception:
+        print("ℹ️ /content/drive não está disponível. Usando caminho local configurado.")
 
 
 def localizar_tfrecord(pasta_base: str) -> str:
@@ -120,6 +119,12 @@ def main() -> None:
     cfg = Config()
     montar_drive_se_necessario()
 
+    print(f"📁 Pasta base configurada: {cfg.pasta_base}")
+    if not os.path.exists(cfg.pasta_base):
+        raise FileNotFoundError(
+            "Pasta base não existe. Defina TESE_IA_BASE_DIR ou ajuste Config.pasta_base."
+        )
+
     caminho_arquivo = localizar_tfrecord(cfg.pasta_base)
     print(f"📂 Lendo dados de: {caminho_arquivo}")
 
@@ -159,6 +164,12 @@ def main() -> None:
     checkpoint_best = os.path.join(cfg.pasta_base, "Modelo_Checkpoint_best.keras")
     csv_log = os.path.join(cfg.pasta_base, "historico_treinamento.csv")
     final_path = os.path.join(cfg.pasta_base, "Modelo_UNet_Jussara_2025_FINAL_v2.keras")
+
+    print("🧭 Arquivos de saída:")
+    print(f"   - Checkpoint (último): {checkpoint_last}")
+    print(f"   - Checkpoint (melhor): {checkpoint_best}")
+    print(f"   - Log CSV: {csv_log}")
+    print(f"   - Modelo final: {final_path}")
 
     if os.path.exists(checkpoint_last):
         print(f"♻️ Retomando treino de checkpoint: {checkpoint_last}")
