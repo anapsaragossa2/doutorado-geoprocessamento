@@ -1,183 +1,116 @@
-"""Retreinamento seguro de U-Net para segmentação de pivôs.
-
-Uso:
-    python treinamento_seguro_unet.py
-
-O script:
-- localiza automaticamente TFRecord mais adequado;
-- cria pipeline otimizado com tf.data;
-- salva checkpoints (último e melhor modelo);
-- permite retomar treino de um checkpoint existente.
-"""
-
-import glob
-import os
-from dataclasses import dataclass
-
 import tensorflow as tf
-from tensorflow.keras import callbacks, layers, models
+from tensorflow.keras import layers, models, callbacks
+import os
+import glob
+from google.colab import drive
 
+# 1. Montar Drive (Obrigatório)
+if not os.path.exists('/content/drive'):
+    drive.mount('/content/drive')
 
-@dataclass
-class Config:
-    pasta_base: str = os.environ.get("TESE_IA_BASE_DIR", "/workspace/doutorado-geoprocessamento")
-    kernel_size: int = 128
-    read_size: int = 129
-    batch_size: int = 32
-    epochs: int = 40
-    validation_split: float = 0.2
-    input_bands: tuple[str, ...] = (
-        "R_1",
-        "NIR_1",
-        "NDVI_1",
-        "R_2",
-        "NIR_2",
-        "NDVI_2",
-    )
-    label_band: str = "label_chip"
+# --- CONFIGURAÇÕES ---
+pasta_base = '/content/drive/MyDrive/Tese_IA_Jussara'
 
+# Busca o arquivo de dados JÁ EXISTENTE
+busca = glob.glob(os.path.join(pasta_base, '*MASSIVE*tfrecord*'))
+if not busca:
+    # Se não achar o MASSIVE, pega qualquer um recente
+    busca = glob.glob(os.path.join(pasta_base, '*tfrecord*'))
+    busca.sort(key=os.path.getmtime, reverse=True)
 
-def localizar_tfrecord(pasta_base: str) -> str:
-    busca_massive = glob.glob(os.path.join(pasta_base, "*MASSIVE*tfrecord*"))
-    if busca_massive:
-        return sorted(busca_massive, key=os.path.getmtime, reverse=True)[0]
+caminho_arquivo = busca[0]
+print(f"📂 Lendo dados de: {caminho_arquivo}")
 
-    busca_geral = glob.glob(os.path.join(pasta_base, "*tfrecord*"))
-    if not busca_geral:
-        raise FileNotFoundError(f"Nenhum arquivo .tfrecord encontrado em: {pasta_base}")
-    return sorted(busca_geral, key=os.path.getmtime, reverse=True)[0]
+# Parâmetros
+KERNEL_SIZE = 128
+READ_SIZE = 129
+BATCH_SIZE = 32
+EPOCHS = 40
+INPUT_BANDS = ['R_1', 'NIR_1', 'NDVI_1', 'R_2', 'NIR_2', 'NDVI_2']
+LABEL_BAND = 'label_chip'
 
-
-def parse_and_process(example_proto: tf.Tensor, cfg: Config):
+# --- PIPELINE DE DADOS (Rápido) ---
+def parse_and_process(example_proto):
     features_dict = {
-        band: tf.io.VarLenFeature(tf.float32)
-        for band in list(cfg.input_bands) + [cfg.label_band]
+        band: tf.io.VarLenFeature(tf.float32) for band in INPUT_BANDS + [LABEL_BAND]
     }
     parsed = tf.io.parse_single_example(example_proto, features_dict)
 
     inputs_list = []
-    for band in cfg.input_bands:
+    for band in INPUT_BANDS:
         dense = tf.sparse.to_dense(parsed[band], default_value=0.0)
-        img = tf.reshape(dense, [cfg.read_size, cfg.read_size, 1])
-        img = tf.image.resize_with_crop_or_pad(img, cfg.kernel_size, cfg.kernel_size)
+        img = tf.reshape(dense, [READ_SIZE, READ_SIZE, 1])
+        img = tf.image.resize_with_crop_or_pad(img, KERNEL_SIZE, KERNEL_SIZE)
         inputs_list.append(img)
 
     image_stacked = tf.concat(inputs_list, axis=-1)
 
-    dense_lbl = tf.sparse.to_dense(parsed[cfg.label_band], default_value=0.0)
-    lbl = tf.reshape(dense_lbl, [cfg.read_size, cfg.read_size, 1])
-    lbl = tf.image.resize_with_crop_or_pad(lbl, cfg.kernel_size, cfg.kernel_size)
+    dense_lbl = tf.sparse.to_dense(parsed[LABEL_BAND], default_value=0.0)
+    lbl = tf.reshape(dense_lbl, [READ_SIZE, READ_SIZE, 1])
+    lbl = tf.image.resize_with_crop_or_pad(lbl, KERNEL_SIZE, KERNEL_SIZE)
     return image_stacked, lbl
 
+# Contagem rápida para não dar erro de tamanho
+print("🔢 Verificando tamanho do arquivo...")
+raw_dataset = tf.data.TFRecordDataset(caminho_arquivo, compression_type='GZIP')
+N_REAL = sum(1 for _ in raw_dataset)
+print(f"✅ Total de amostras: {N_REAL}")
 
-def build_unet(input_shape: tuple[int, int, int]) -> tf.keras.Model:
+N_TRAIN = int(N_REAL * 0.8)
+full_dataset = tf.data.TFRecordDataset(caminho_arquivo, compression_type='GZIP').map(parse_and_process)
+
+train_ds = full_dataset.take(N_TRAIN).cache().shuffle(N_TRAIN).batch(BATCH_SIZE).prefetch(tf.data.AUTOTUNE)
+val_ds = full_dataset.skip(N_TRAIN).cache().batch(BATCH_SIZE).prefetch(tf.data.AUTOTUNE)
+
+# --- MODELO U-NET ---
+def build_unet(input_shape):
     inputs = layers.Input(shape=input_shape)
 
-    c1 = layers.Conv2D(32, (3, 3), activation="relu", padding="same")(inputs)
-    p1 = layers.MaxPooling2D()(c1)
-    c2 = layers.Conv2D(64, (3, 3), activation="relu", padding="same")(p1)
-    p2 = layers.MaxPooling2D()(c2)
-    c3 = layers.Conv2D(128, (3, 3), activation="relu", padding="same")(p2)
-    p3 = layers.MaxPooling2D()(c3)
+    # Camadas (Encoder)
+    c1 = layers.Conv2D(32, (3, 3), activation='relu', padding='same')(inputs); p1 = layers.MaxPooling2D()(c1)
+    c2 = layers.Conv2D(64, (3, 3), activation='relu', padding='same')(p1); p2 = layers.MaxPooling2D()(c2)
+    c3 = layers.Conv2D(128, (3, 3), activation='relu', padding='same')(p2); p3 = layers.MaxPooling2D()(c3)
 
-    c4 = layers.Conv2D(256, (3, 3), activation="relu", padding="same")(p3)
+    # Bottleneck
+    c4 = layers.Conv2D(256, (3, 3), activation='relu', padding='same')(p3)
 
-    u5 = layers.Conv2DTranspose(128, (2, 2), strides=(2, 2), padding="same")(c4)
+    # Decoder
+    u5 = layers.Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same')(c4)
     u5 = layers.concatenate([u5, c3])
-    c5 = layers.Conv2D(128, (3, 3), activation="relu", padding="same")(u5)
+    c5 = layers.Conv2D(128, (3, 3), activation='relu', padding='same')(u5)
 
-    u6 = layers.Conv2DTranspose(64, (2, 2), strides=(2, 2), padding="same")(c5)
+    u6 = layers.Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same')(c5)
     u6 = layers.concatenate([u6, c2])
-    c6 = layers.Conv2D(64, (3, 3), activation="relu", padding="same")(u6)
+    c6 = layers.Conv2D(64, (3, 3), activation='relu', padding='same')(u6)
 
-    u7 = layers.Conv2DTranspose(32, (2, 2), strides=(2, 2), padding="same")(c6)
+    u7 = layers.Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same')(c6)
     u7 = layers.concatenate([u7, c1])
-    c7 = layers.Conv2D(32, (3, 3), activation="relu", padding="same")(u7)
+    c7 = layers.Conv2D(32, (3, 3), activation='relu', padding='same')(u7)
 
-    outputs = layers.Conv2D(1, (1, 1), activation="sigmoid")(c7)
-    model = models.Model(inputs=[inputs], outputs=[outputs], name="unet_pivos")
-    model.compile(optimizer="adam", loss="binary_crossentropy", metrics=["accuracy"])
-    return model
+    outputs = layers.Conv2D(1, (1, 1), activation='sigmoid')(c7)
+    return models.Model(inputs=[inputs], outputs=[outputs])
 
+model = build_unet((KERNEL_SIZE, KERNEL_SIZE, 6))
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
 
-def main() -> None:
-    cfg = Config()
+# --- 🛡️ SALVAMENTO AUTOMÁTICO (SEGURANÇA) ---
+# Salva um backup no Drive a cada melhoria
+checkpoint_path = os.path.join(pasta_base, 'Modelo_Checkpoint.keras')
+checkpoint_cb = callbacks.ModelCheckpoint(
+    filepath=checkpoint_path,
+    save_best_only=False, # Salva sempre o último estado
+    verbose=1
+)
 
-    print(f"📁 Pasta base configurada: {cfg.pasta_base}")
-    os.makedirs(cfg.pasta_base, exist_ok=True)
+print("🔥 Iniciando Retreinamento (Vai salvar automaticamente no Drive)...")
+history = model.fit(
+    train_ds,
+    validation_data=val_ds,
+    epochs=EPOCHS,
+    callbacks=[checkpoint_cb] # <--- Aqui está a segurança
+)
 
-    caminho_arquivo = localizar_tfrecord(cfg.pasta_base)
-    print(f"📂 Lendo dados de: {caminho_arquivo}")
-
-    print("🔢 Verificando tamanho do arquivo...")
-    raw_dataset = tf.data.TFRecordDataset(caminho_arquivo, compression_type="GZIP")
-    n_real = sum(1 for _ in raw_dataset)
-    if n_real < 2:
-        raise ValueError("Poucas amostras para treinar/validar (mínimo: 2).")
-    print(f"✅ Total de amostras: {n_real}")
-
-    n_train = int(n_real * (1 - cfg.validation_split))
-    n_train = max(1, min(n_train, n_real - 1))
-
-    full_dataset = tf.data.TFRecordDataset(caminho_arquivo, compression_type="GZIP")
-    full_dataset = full_dataset.map(
-        lambda x: parse_and_process(x, cfg), num_parallel_calls=tf.data.AUTOTUNE
-    )
-
-    train_ds = (
-        full_dataset.take(n_train)
-        .cache()
-        .shuffle(min(n_train, 4096), reshuffle_each_iteration=True)
-        .batch(cfg.batch_size)
-        .prefetch(tf.data.AUTOTUNE)
-    )
-    val_ds = (
-        full_dataset.skip(n_train)
-        .cache()
-        .batch(cfg.batch_size)
-        .prefetch(tf.data.AUTOTUNE)
-    )
-
-    model = build_unet((cfg.kernel_size, cfg.kernel_size, len(cfg.input_bands)))
-    model.summary()
-
-    checkpoint_last = os.path.join(cfg.pasta_base, "Modelo_Checkpoint_last.keras")
-    checkpoint_best = os.path.join(cfg.pasta_base, "Modelo_Checkpoint_best.keras")
-    csv_log = os.path.join(cfg.pasta_base, "historico_treinamento.csv")
-    final_path = os.path.join(cfg.pasta_base, "Modelo_UNet_Jussara_2025_FINAL_v2.keras")
-
-    print("🧭 Arquivos de saída:")
-    print(f"   - Checkpoint (último): {checkpoint_last}")
-    print(f"   - Checkpoint (melhor): {checkpoint_best}")
-    print(f"   - Log CSV: {csv_log}")
-    print(f"   - Modelo final: {final_path}")
-
-    if os.path.exists(checkpoint_last):
-        print(f"♻️ Retomando treino de checkpoint: {checkpoint_last}")
-        model = tf.keras.models.load_model(checkpoint_last)
-
-    cbs = [
-        callbacks.ModelCheckpoint(filepath=checkpoint_last, save_best_only=False, verbose=1),
-        callbacks.ModelCheckpoint(
-            filepath=checkpoint_best,
-            monitor="val_loss",
-            mode="min",
-            save_best_only=True,
-            verbose=1,
-        ),
-        callbacks.EarlyStopping(monitor="val_loss", patience=8, restore_best_weights=True),
-        callbacks.ReduceLROnPlateau(
-            monitor="val_loss", factor=0.5, patience=4, min_lr=1e-6, verbose=1
-        ),
-        callbacks.CSVLogger(csv_log, append=True),
-    ]
-
-    print("🔥 Iniciando Retreinamento Seguro...")
-    model.fit(train_ds, validation_data=val_ds, epochs=cfg.epochs, callbacks=cbs, verbose=1)
-
-    model.save(final_path)
-    print(f"✅ SUCESSO! Modelo final salvo em: {final_path}")
-
-
-if __name__ == "__main__":
-    main()
+# Salvamento Final Definitivo
+final_path = os.path.join(pasta_base, 'Modelo_UNet_Jussara_2025_FINAL_v2.keras')
+model.save(final_path)
+print(f"✅ SUCESSO! Modelo final salvo em: {final_path}")
