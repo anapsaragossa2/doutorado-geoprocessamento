@@ -8,22 +8,22 @@ Scripts de apoio para retreinamento e validação visual de uma U-Net para segme
 - `validacao_visual_modelo.py`: prova de fogo para carregar o modelo salvo e visualizar predições vs. gabarito.
 - `treinamento_unet_colab.ipynb`: notebook pronto para abrir no Colab e executar treino + validação.
 
-## Não aparece no Colab (GitHub)?
+## Abrir no Colab (GitHub)
 
-No seletor do Colab, ele lista principalmente arquivos **`.ipynb`**. Como antes só tinha `.py`, podia aparecer “Nenhum resultado”.
+Use estes comandos no notebook:
 
-Agora use o notebook:
+```python
+# 1) Clonar o repositório (ajuste para seu usuário/repositorio)
+!git clone https://github.com/Anapsaragossa/doutorado-geoprocessamento.git
+%cd doutorado-geoprocessamento
+```
 
-- `treinamento_unet_colab.ipynb`
-
-Dica no Colab:
-1. Em **Abrir notebook > GitHub**, selecione o repositório.
-2. Troque para a branch correta.
-3. Procure por `treinamento_unet_colab.ipynb`.
+Se der erro porque a pasta já existe, use a versão robusta do notebook (`1.b`).
 
 ## Em qual pasta o modelo é salvo?
 
-Agora o padrão está configurado para salvar **aqui no projeto**:
+Por padrão, os scripts salvam no diretório definido por `TESE_IA_BASE_DIR`.
+Se não definir, usam:
 
 `/workspace/doutorado-geoprocessamento`
 
@@ -34,9 +34,7 @@ Arquivos gerados no treino:
 - `historico_treinamento.csv`
 - `Modelo_UNet_Jussara_2025_FINAL_v2.keras`
 
-Se quiser trocar a pasta base, use a variável de ambiente `TESE_IA_BASE_DIR`.
-
-Exemplo:
+Exemplo para trocar a pasta base:
 
 ```bash
 export TESE_IA_BASE_DIR="/caminho/que/voce/quiser"
@@ -45,7 +43,7 @@ python treinamento_seguro_unet.py
 
 ## Uso
 
-1. Deixe o `.tfrecord` dentro da pasta base (padrão: `/workspace/doutorado-geoprocessamento`).
+1. Deixe o `.tfrecord` dentro da pasta base.
 2. Execute o retreinamento:
 
 ```bash
