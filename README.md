@@ -2,64 +2,34 @@
 
 Código para retreinamento/validação da U-Net no Colab com foco em identificar talhões com mais rigor.
 
-## Fluxo recomendado (sem clone)
+## Fluxo único no mesmo notebook (sequencial)
 
-Use os notebooks abaixo. Eles gravam os scripts localmente e executam treino + validação no Colab:
+Os dois notebooks agora estão organizados com **todos os testes em sequência**:
 
 - `treinamento_unet_colab.ipynb`
 - `Script_Doutorando_v3_15_01_26.ipynb`
 
-## Importante (erro de mount ao usar `!python`)
+Ordem no notebook:
+1. Instala dependências
+2. Monta Drive
+3. Treino
+4. Gráfico de evolução do treino (loss / IoU / Dice)
+5. Prova real visual
+6. Teste de limiares (threshold sweep)
+7. Resumo final do threshold
 
-Antes de executar `!python treinamento_seguro_unet.py` e `!python validacao_visual_modelo.py`, monte o Drive em uma célula do notebook:
+Assim você acompanha toda a evolução no mesmo arquivo.
 
-```python
-from google.colab import drive
-drive.mount('/content/drive')
-```
+## Artefatos gerados no Drive
 
-Os notebooks já trazem essa célula pronta.
-
-## Prova real no Colab
-
-A validação salva a figura em:
-
-`/content/drive/MyDrive/Tese_IA_Jussara/prova_real_validacao.png`
-
-E o notebook tem uma célula final para exibir essa imagem automaticamente.
-
-## Próximo ponto de teste: limiar de decisão
-
-Adicionado script de teste de limiares:
-
-- `teste_limiares_talhoes.py`
-
-Ele testa thresholds (0.30, 0.40, 0.50, 0.60, 0.70) e reporta:
-
-- `precision`
-- `recall`
-- `f1`
-- `iou`
-
-Também salva o relatório em:
-
-`/content/drive/MyDrive/Tese_IA_Jussara/resultado_teste_limiares.txt`
-
-## O que ficou mais rigoroso no treino
-
-- Normalização por banda em cada chip.
-- Data augmentation (flip horizontal/vertical + rotação 90º).
-- U-Net com BatchNormalization em todos os blocos.
-- Loss combinada `BCE + Dice` para lidar melhor com desbalanceamento.
-- Métricas: `accuracy`, `precision`, `recall`, `IoU`, `dice_coef`.
-- Checkpoint do último e do melhor modelo (`val_iou`), `EarlyStopping`, `ReduceLROnPlateau` e `CSVLogger`.
+- Modelo final: `/content/drive/MyDrive/Tese_IA_Jussara/Modelo_UNet_Jussara_2025_FINAL_v2.keras`
+- Checkpoint best: `/content/drive/MyDrive/Tese_IA_Jussara/Modelo_Checkpoint_best.keras`
+- Histórico treino: `/content/drive/MyDrive/Tese_IA_Jussara/historico_treinamento.csv`
+- Prova real: `/content/drive/MyDrive/Tese_IA_Jussara/prova_real_validacao.png`
+- Sweep de limiares: `/content/drive/MyDrive/Tese_IA_Jussara/resultado_teste_limiares.txt`
 
 ## Scripts Python
 
 - `treinamento_seguro_unet.py`
 - `validacao_visual_modelo.py`
 - `teste_limiares_talhoes.py`
-
-## Pasta padrão
-
-`/content/drive/MyDrive/Tese_IA_Jussara`
