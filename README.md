@@ -1,17 +1,24 @@
 # doutorado-geoprocessamento
 
-Código para retreinamento/validação da U-Net no Colab.
+Código para retreinamento/validação da U-Net no Colab com foco em identificar talhões com mais rigor.
 
 ## Fluxo recomendado (sem clone)
 
-Use os notebooks abaixo: eles já incluem o código de treino e validação dentro do próprio `.ipynb`, então **não dependem de `git clone`** e evitam erro de autenticação (`403`).
+Use os notebooks abaixo. Eles gravam os scripts localmente e executam treino + validação no Colab:
 
 - `treinamento_unet_colab.ipynb`
 - `Script_Doutorando_v3_15_01_26.ipynb`
 
-## Scripts Python (opcional)
+## O que ficou mais rigoroso no treino
 
-Se preferir, você ainda pode usar os scripts:
+- Normalização por banda em cada chip.
+- Data augmentation (flip horizontal/vertical + rotação 90º).
+- U-Net com BatchNormalization em todos os blocos.
+- Loss combinada `BCE + Dice` para lidar melhor com desbalanceamento.
+- Métricas: `accuracy`, `precision`, `recall`, `IoU`, `dice_coef`.
+- Checkpoint do último e do melhor modelo (`val_iou`), `EarlyStopping`, `ReduceLROnPlateau` e `CSVLogger`.
+
+## Scripts Python
 
 - `treinamento_seguro_unet.py`
 - `validacao_visual_modelo.py`
