@@ -57,6 +57,7 @@ Script base: `teste_limiares_talhoes.py`
 - `validacao_visual_modelo.py`
 - `teste_limiares_talhoes.py`
 - `pos_processamento_mascara.py`
+- `teste_recall_precision_fino.py`
 
 
 ## Bloco único final no notebook
@@ -86,3 +87,29 @@ Arquivos gerados:
 Parâmetro opcional:
 
 - `CM_MAX_BATCHES` (default `20`) para limitar quantos batches da validação entram na matriz de confusão.
+
+
+## Ajuste fino para aumentar recall (sem derrubar muito precisão)
+
+Novo script: `teste_recall_precision_fino.py`
+
+- testa thresholds finos entre `0.28` e `0.32` (default: `0.28,0.29,0.30,0.31,0.32`);
+- compara dois modos em cada threshold:
+  - `bruto` (sem limpeza geométrica),
+  - `geom` (com filtro por área mínima/máxima + circularidade);
+- calcula `precision`, `recall`, `f1`, `iou`;
+- gera recomendação priorizando **maior recall** com piso de precisão (`precision_floor = baseline_precision - PRECISION_TOL`, default `0.02`).
+
+Arquivo gerado no Drive:
+
+- `/content/drive/MyDrive/Tese_IA_Jussara/resultado_recall_precision_fino.txt`
+
+Parâmetros opcionais:
+
+- `THRESHOLDS_FINE` (ex.: `0.28,0.29,0.30,0.31,0.32`)
+- `GEOM_MIN_AREA` (default `80`)
+- `GEOM_MAX_AREA` (default `25000`)
+- `GEOM_MIN_CIRC` (default `0.35`)
+- `PRECISION_TOL` (default `0.02`)
+- `BATCH_SIZE_COMPARE` (default `8`)
+- `N_BATCHES_COMPARE` (default `20`)
