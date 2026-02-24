@@ -71,3 +71,18 @@ Arquivos gerados no Drive:
 
 - `/content/drive/MyDrive/Tese_IA_Jussara/resultado_pos_processamento.txt`
 - `/content/drive/MyDrive/Tese_IA_Jussara/recomendacao_pipeline.txt`
+
+
+## Treino mais rigoroso e matriz de confusão
+
+- O treino foi ampliado para `EPOCHS = 120` (com `EarlyStopping`, então para automaticamente se não houver ganho).
+- Ao fim do treino, o script `treinamento_seguro_unet.py` calcula e salva a matriz de confusão na validação (pixel a pixel) usando `THRESHOLD_INFERENCIA` (default `0.30`).
+
+Arquivos gerados:
+
+- `/content/drive/MyDrive/Tese_IA_Jussara/matriz_confusao_validacao.png`
+- `/content/drive/MyDrive/Tese_IA_Jussara/matriz_confusao_validacao.txt`
+
+Parâmetro opcional:
+
+- `CM_MAX_BATCHES` (default `20`) para limitar quantos batches da validação entram na matriz de confusão.

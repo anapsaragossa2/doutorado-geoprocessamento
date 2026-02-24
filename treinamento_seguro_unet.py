@@ -2,7 +2,9 @@ import os
 os.environ.setdefault('TF_CPP_MIN_LOG_LEVEL', '2')
 
 import glob
+import numpy as np
 import tensorflow as tf
+import matplotlib.pyplot as plt
 from tensorflow.keras import layers, models, callbacks
 
 
@@ -23,7 +25,7 @@ pasta_base = garantir_drive_montado()
 KERNEL_SIZE = 128
 READ_SIZE = 129
 BATCH_SIZE = 32
-EPOCHS = 80
+EPOCHS = 120
 SEED = 42
 INPUT_BANDS = ['R_1', 'NIR_1', 'NDVI_1', 'R_2', 'NIR_2', 'NDVI_2']
 LABEL_BAND = 'label_chip'
@@ -164,6 +166,54 @@ model.compile(
     ],
 )
 
+
+
+def calcular_matriz_confusao(model, dataset, threshold: float, max_batches: int = 20):
+    tp = fp = fn = tn = 0
+    for batch_idx, (x_batch, y_batch) in enumerate(dataset):
+        if batch_idx >= max_batches:
+            break
+        probs = model.predict(x_batch, verbose=0)
+        y_pred = (probs > threshold).astype(np.uint8)
+        y_true = y_batch.numpy().astype(np.uint8)
+
+        tp += np.logical_and(y_pred == 1, y_true == 1).sum()
+        fp += np.logical_and(y_pred == 1, y_true == 0).sum()
+        fn += np.logical_and(y_pred == 0, y_true == 1).sum()
+        tn += np.logical_and(y_pred == 0, y_true == 0).sum()
+
+    return np.array([[tn, fp], [fn, tp]], dtype=np.int64)
+
+
+def salvar_matriz_confusao(cm: np.ndarray, out_png: str, out_txt: str):
+    total = cm.sum() + 1e-9
+    cm_norm = cm / total
+
+    with open(out_txt, 'w', encoding='utf-8') as f:
+        f.write('matriz_confusao_pixel\n')
+        f.write('\tpred_0\tpred_1\n')
+        f.write(f'true_0\t{cm[0,0]}\t{cm[0,1]}\n')
+        f.write(f'true_1\t{cm[1,0]}\t{cm[1,1]}\n')
+        f.write(f'total_pixels={int(total-1e-9)}\n')
+
+    fig, ax = plt.subplots(figsize=(5, 4))
+    im = ax.imshow(cm_norm, cmap='Blues')
+    ax.set_xticks([0, 1])
+    ax.set_yticks([0, 1])
+    ax.set_xticklabels(['Pred 0', 'Pred 1'])
+    ax.set_yticklabels(['True 0', 'True 1'])
+    ax.set_title('Matriz de confusão (validação)')
+
+    for i in range(2):
+        for j in range(2):
+            ax.text(j, i, f'{cm[i, j]}\n({cm_norm[i, j]*100:.2f}%)',
+                    ha='center', va='center', color='black', fontsize=10)
+
+    fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+    fig.tight_layout()
+    fig.savefig(out_png, dpi=180, bbox_inches='tight')
+    plt.close(fig)
+
 checkpoint_last = os.path.join(pasta_base, 'Modelo_Checkpoint_last.keras')
 checkpoint_best = os.path.join(pasta_base, 'Modelo_Checkpoint_best.keras')
 csv_log = os.path.join(pasta_base, 'historico_treinamento.csv')
@@ -188,3 +238,12 @@ model.fit(
 model.save(final_path)
 print(f"✅ SUCESSO! Modelo final salvo em: {final_path}")
 print(f"✅ Melhor checkpoint salvo em: {checkpoint_best}")
+
+THRESHOLD_CM = float(os.environ.get('THRESHOLD_INFERENCIA', '0.30'))
+MAX_BATCHES_CM = int(os.environ.get('CM_MAX_BATCHES', '20'))
+cm = calcular_matriz_confusao(model, val_ds, threshold=THRESHOLD_CM, max_batches=MAX_BATCHES_CM)
+cm_png = os.path.join(pasta_base, 'matriz_confusao_validacao.png')
+cm_txt = os.path.join(pasta_base, 'matriz_confusao_validacao.txt')
+salvar_matriz_confusao(cm, cm_png, cm_txt)
+print(f'🧪 Matriz de confusão salva em: {cm_png}')
+print(f'🧪 Valores da matriz de confusão salvos em: {cm_txt}')
