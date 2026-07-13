@@ -27,6 +27,14 @@ Exemplos de nomes aceitos:
 - Salva o modelo final em `Modelo_UNet_Jussara_2025_FINAL_v2.keras`.
 - Valida o modelo final usando TFRecords da mesma safra 2025.
 
+### Datas usadas
+
+A janela fenológica configurada no notebook é de **1º de dezembro de 2024 a 31 de março de 2025** (`SAFRA_INICIO = '2024-12-01'` e `SAFRA_FIM = '2025-03-31'`).
+
+No TFRecord esperado, as bandas com sufixo `_1` representam a janela inicial da safra (dezembro/2024) e as bandas com sufixo `_2` representam a janela final da safra (março/2025). Portanto, a fenologia é calculada principalmente pela diferença entre `NDVI_2` e `NDVI_1`.
+
+Importante: o notebook usa essas datas como configuração/documentação do experimento. Ele assume que o TFRecord foi gerado previamente com imagens desse período.
+
 ### Fenologia usada no treinamento
 
 Com `USAR_FENOLOGIA = True`, o notebook adiciona seis bandas derivadas às seis bandas originais, totalizando 12 bandas de entrada:
