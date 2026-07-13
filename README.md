@@ -37,7 +37,7 @@ Importante: o notebook usa essas datas como configuração/documentação do exp
 
 ### Fenologia usada no treinamento
 
-Com `USAR_FENOLOGIA = True`, o notebook adiciona seis bandas derivadas às seis bandas originais, totalizando 12 bandas de entrada:
+Com `USAR_FENOLOGIA = True`, o notebook adiciona seis bandas derivadas às seis bandas originais. Com `USAR_VARIACAO_PAISAGEM = True`, adiciona mais seis bandas de variação da paisagem, totalizando 18 bandas de entrada:
 
 - `DELTA_NDVI`: diferença de NDVI entre as duas datas, útil para capturar crescimento ou queda da lavoura.
 - `ABS_DELTA_NDVI`: amplitude fenológica, útil porque vegetação nativa do Cerrado tende a ser mais estável que áreas plantadas em várias janelas da safra.
@@ -45,6 +45,19 @@ Com `USAR_FENOLOGIA = True`, o notebook adiciona seis bandas derivadas às seis 
 - `NDVI_MEAN`: vigor médio no período analisado.
 - `PLANTIO_SIGNAL`: aumento positivo de NDVI, usado como sinal de implantação/desenvolvimento do plantio.
 - `CERRADO_STABILITY`: combinação de vigor médio com baixa variação temporal, usada como pista para vegetação nativa estável.
+
+### Variação da paisagem e alertas
+
+Além da fenologia, o notebook cria bandas para monitorar mudança da paisagem e gerar alertas simples no lote de validação:
+
+- `COLHEITA_SIGNAL`: queda de NDVI entre a janela inicial e final, indicando possível colheita ou senescência.
+- `SOLO_EXPOSTO_1`: provável solo exposto na janela inicial.
+- `SOLO_EXPOSTO_2`: provável solo exposto na janela final.
+- `SOLO_EXPOSTO_AUMENTO`: aumento de solo exposto entre as duas datas.
+- `MUDANCA_PAISAGEM`: variação média em `R`, `NIR` e `NDVI`.
+- `ALERTA_MUDANCA`: máscara de alerta quando há sinal forte de colheita, aumento de solo exposto ou mudança relevante da paisagem.
+
+A célula de validação imprime percentuais de alerta, sinal médio de colheita e solo exposto, além de mostrar uma coluna visual de `Alerta paisagem` ao lado do gabarito e da predição da IA.
 
 ### Passos de execução
 
