@@ -37,7 +37,7 @@ Importante: o notebook usa essas datas como configuração/documentação do exp
 
 ### Fenologia usada no treinamento
 
-Com `USAR_FENOLOGIA = True`, o notebook adiciona seis bandas derivadas às seis bandas originais. Com `USAR_VARIACAO_PAISAGEM = True`, adiciona mais seis bandas de variação da paisagem, totalizando 18 bandas de entrada:
+Com `USAR_FENOLOGIA = True`, o notebook adiciona seis bandas derivadas às seis bandas originais. Com `USAR_AUGE_VIGOR = True`, adiciona quatro bandas para mapear o auge do vigor. Com `USAR_VARIACAO_PAISAGEM = True`, adiciona mais seis bandas de variação da paisagem, totalizando 22 bandas de entrada:
 
 - `DELTA_NDVI`: diferença de NDVI entre as duas datas, útil para capturar crescimento ou queda da lavoura.
 - `ABS_DELTA_NDVI`: amplitude fenológica, útil porque vegetação nativa do Cerrado tende a ser mais estável que áreas plantadas em várias janelas da safra.
@@ -45,6 +45,19 @@ Com `USAR_FENOLOGIA = True`, o notebook adiciona seis bandas derivadas às seis 
 - `NDVI_MEAN`: vigor médio no período analisado.
 - `PLANTIO_SIGNAL`: aumento positivo de NDVI, usado como sinal de implantação/desenvolvimento do plantio.
 - `CERRADO_STABILITY`: combinação de vigor médio com baixa variação temporal, usada como pista para vegetação nativa estável.
+
+### Auge do vigor
+
+Com apenas duas janelas temporais no TFRecord (`_1` para dezembro/2024 e `_2` para março/2025), o notebook mapeia o auge do vigor como o maior NDVI observado entre essas duas janelas. Se futuramente o TFRecord tiver mais datas intermediárias, esse cálculo deve ser expandido para procurar o máximo em toda a série temporal.
+
+As bandas adicionadas são:
+
+- `VIGOR_MAX_NDVI`: maior NDVI observado entre as duas janelas.
+- `VIGOR_PEAK_TIMING`: indica se o pico ocorreu mais próximo da janela inicial (`0`) ou final (`1`).
+- `VIGOR_PEAK_CONFIDENCE`: diferença absoluta entre `NDVI_1` e `NDVI_2`, indicando quão forte é a evidência do pico.
+- `VIGOR_ALTO_MASK`: máscara de alto vigor usando `LIMIAR_ALTO_VIGOR_NDVI = 0.55`.
+
+A validação imprime o percentual de pixels em alto vigor e mostra uma coluna visual `Auge do vigor`.
 
 ### Variação da paisagem e alertas
 
