@@ -29,10 +29,8 @@ ZIP_PIVOS = "projects/sefazgogeoprocessamento/assets/pivo.zip"
 
 # %%
 ee.Authenticate()
-if PROJECT_ID:
-    ee.Initialize(project=PROJECT_ID)
-else:
-    ee.Initialize()
+init_kwargs = {"project": PROJECT_ID} if PROJECT_ID else {}
+ee.Initialize(**init_kwargs)
 
 # %%
 def jussara_go_geometry() -> ee.Geometry:
