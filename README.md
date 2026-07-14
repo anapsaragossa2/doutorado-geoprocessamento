@@ -83,3 +83,9 @@ A célula de validação imprime percentuais de alerta, sinal médio de colheita
 A validação visual agora mostra também a coluna **“Resultado pivôs”**, que é a máscara binária final da IA para pivôs no lote inspecionado. A coluna **“Prob. IA pivô”** continua mostrando a probabilidade contínua, enquanto **“Resultado pivôs”** aplica `LIMIAR_RESULTADO_PIVO = 0.50` para facilitar a conferência visual do que foi realmente marcado como pivô.
 
 Ao executar a célula de validação, o notebook também imprime o percentual de pixels marcados como pivô e salva a figura em `/content/drive/MyDrive/Tese_IA_Jussara/Resultado_Pivos_Jussara_2025.png`.
+
+### Treinamento de solo exposto após colheita
+
+Foi adicionada uma célula independente para treinar um modelo auxiliar de **solo exposto pós-colheita**. Essa célula cria uma máscara-alvo inicial por regras, combinando queda de NDVI entre a janela inicial e final, NDVI baixo na janela final e aumento de sinal no vermelho, para representar áreas que perderam vigor e ficaram com solo exposto após a colheita.
+
+O modelo auxiliar usa as bandas originais (`R_1`, `NIR_1`, `NDVI_1`, `R_2`, `NIR_2`, `NDVI_2`) e quatro bandas derivadas: `DELTA_NDVI_COLHEITA`, `SOLO_EXPOSTO_FINAL`, `AUMENTO_SOLO_EXPOSTO` e `VERMELHO_FINAL_ALTO`. O resultado é salvo em `Modelo_Solo_Exposto_Pos_Colheita_2025_FINAL.keras`, mantendo esse treinamento separado do modelo principal de pivôs.
