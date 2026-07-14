@@ -77,3 +77,9 @@ A célula de validação imprime percentuais de alerta, sinal médio de colheita
 1. Abra o notebook no Google Colab.
 2. Execute o bloco de retreinamento para gerar o checkpoint e o modelo final.
 3. Execute o bloco de validação visual para comparar satélite, gabarito e predição da IA.
+
+### Visualização do resultado dos pivôs
+
+A validação visual agora mostra também a coluna **“Resultado pivôs”**, que é a máscara binária final da IA para pivôs no lote inspecionado. A coluna **“Prob. IA pivô”** continua mostrando a probabilidade contínua, enquanto **“Resultado pivôs”** aplica `LIMIAR_RESULTADO_PIVO = 0.50` para facilitar a conferência visual do que foi realmente marcado como pivô.
+
+Ao executar a célula de validação, o notebook também imprime o percentual de pixels marcados como pivô e salva a figura em `/content/drive/MyDrive/Tese_IA_Jussara/Resultado_Pivos_Jussara_2025.png`.
