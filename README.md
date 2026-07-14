@@ -89,3 +89,9 @@ Ao executar a célula de validação, o notebook também imprime o percentual de
 Foi adicionada uma célula independente para treinar um modelo auxiliar de **solo exposto pós-colheita**. Essa célula cria uma máscara-alvo inicial por regras, combinando queda de NDVI entre a janela inicial e final, NDVI baixo na janela final e aumento de sinal no vermelho, para representar áreas que perderam vigor e ficaram com solo exposto após a colheita.
 
 O modelo auxiliar usa as bandas originais (`R_1`, `NIR_1`, `NDVI_1`, `R_2`, `NIR_2`, `NDVI_2`) e quatro bandas derivadas: `DELTA_NDVI_COLHEITA`, `SOLO_EXPOSTO_FINAL`, `AUMENTO_SOLO_EXPOSTO` e `VERMELHO_FINAL_ALTO`. O resultado é salvo em `Modelo_Solo_Exposto_Pos_Colheita_2025_FINAL.keras`, mantendo esse treinamento separado do modelo principal de pivôs.
+
+### Treinamento específico dos pivôs e exemplos positivos
+
+Foi adicionada uma célula independente para treinar um modelo auxiliar focado em **pivôs**, usando `label_chip` como máscara positiva. Esse modelo usa as bandas originais da safra e atributos derivados de NDVI, colheita e solo exposto para aprender a segmentação de pivôs sem misturar esse objetivo com o treinamento de solo exposto pós-colheita.
+
+Logo abaixo dessa célula, há uma célula de **exemplos positivos de pivô encontrados**. Ela carrega `Modelo_Pivos_2025_FINAL.keras`, procura chips com pivôs no gabarito ou na predição da IA, mostra NDVI, gabarito, probabilidade e resultado binário do pivô, e salva a figura em `Exemplos_Positivos_Pivos_2025.png` no Google Drive.
