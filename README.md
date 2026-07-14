@@ -8,9 +8,9 @@ O fluxo recomendado agora é **Google Colab + Google Earth Engine (GEE)**:
 2. exportar um mosaico Sentinel-2 recortado para o Google Drive;
 3. treinar a U-Net com o ZIP de pivôs em `projects/sefazgogeoprocessamento/assets/pivo.zip`.
 
-O arquivo `colab_gee_jussara_pivos.py` está organizado em células `# %%`, então
-pode ser copiado para o Colab ou usado por editores que convertem scripts em
-notebooks.
+Para abrir diretamente no Colab, use o notebook `colab_gee_jussara_pivos.ipynb`.
+Também mantive `colab_gee_jussara_pivos.py` em células `# %%` para quem prefere
+versionar/editar como script.
 
 ### Recorte GEE de Jussara-GO
 
@@ -31,7 +31,8 @@ No Colab, instale dependências se necessário:
 !pip install -q earthengine-api geemap tensorflow
 ```
 
-Autentique e rode as células do arquivo:
+Abra `colab_gee_jussara_pivos.ipynb` no Colab e execute as células em ordem.
+Se preferir usar o script, rode:
 
 ```python
 %run colab_gee_jussara_pivos.py
