@@ -1,8 +1,8 @@
 /****
  * Detecção de pivôs centrais por textura e forma em Jussara-GO (Sentinel-2, 2025)
  *
- * Cole este script no Google Earth Engine Code Editor e ajuste os caminhos dos assets
- * na seção CONFIGURAÇÃO antes de executar.
+ * Cole este script no Google Earth Engine Code Editor. A área municipal usa uma
+ * coleção pública; somente as amostras positivas precisam ser informadas.
  ****/
 
 // -----------------------------------------------------------------------------
@@ -11,16 +11,21 @@
 var CONFIG = {
   ano: 2025,
   municipioNome: 'Jussara',
-  estadoSigla: 'GO',
 
-  // Substitua pelo asset da malha municipal do IBGE usado no seu projeto.
-  municipiosIbge: 'users/SEU_USUARIO/BR_Municipios_2022',
+  // Limites administrativos públicos disponíveis no catálogo do Earth Engine.
+  municipios: 'FAO/GAUL/2015/level2',
+  campoMunicipio: 'ADM2_NAME',
+  campoEstado: 'ADM1_NAME',
+  estadoNome: 'Goias',
 
-  // Substitua pelo asset com polígonos/pontos dos pivôs conhecidos em Jussara.
-  assetPivosPositivos: 'users/SEU_USUARIO/pivos_jussara_treinamento',
+  // Informe um asset real OU use as amostras inline definidas logo abaixo.
+  // Nunca deixe aqui o texto de exemplo "users/SEU_USUARIO/...".
+  assetPivosPositivos: null,
+  usarAmostrasPositivasInline: false,
 
   // Opcional: substitua por polígonos/pontos de não pivô (pastagem, mata, urbano etc.).
-  // Se o asset não existir ou ficar vazio, o script gera amostras negativas aleatórias.
+  // Com null, o script gera amostras negativas aleatórias. Um caminho inexistente
+  // sempre produz Collection.loadTable; portanto, não use um placeholder aqui.
   assetAmostrasNegativas: null,
 
   escala: 10,
@@ -39,16 +44,36 @@ var CONFIG = {
   ]
 };
 
+// Alternativa ao asset: cole aqui pontos ou polígonos desenhados/importados no
+// Code Editor e altere `usarAmostrasPositivasInline` para true. Exemplo:
+// ee.Feature(ee.Geometry.Point([-50.0, -15.0]))
+var AMOSTRAS_POSITIVAS_INLINE = ee.FeatureCollection([
+  // ee.Feature(geometry1),
+  // ee.Feature(geometry2)
+]);
+
+if (!CONFIG.assetPivosPositivos && !CONFIG.usarAmostrasPositivasInline) {
+  throw new Error(
+    'CONFIGURAÇÃO INCOMPLETA: informe CONFIG.assetPivosPositivos com um asset ' +
+    'existente ou preencha AMOSTRAS_POSITIVAS_INLINE e defina ' +
+    'CONFIG.usarAmostrasPositivasInline = true.'
+  );
+}
+
 // -----------------------------------------------------------------------------
 // 2. ÁREA DE ESTUDO E AMOSTRAS
 // -----------------------------------------------------------------------------
-var municipios = ee.FeatureCollection(CONFIG.municipiosIbge);
+var municipios = ee.FeatureCollection(CONFIG.municipios);
 var jussara = municipios
-  .filter(ee.Filter.eq('NM_MUN', CONFIG.municipioNome))
-  .filter(ee.Filter.eq('SIGLA_UF', CONFIG.estadoSigla));
+  .filter(ee.Filter.eq(CONFIG.campoMunicipio, CONFIG.municipioNome))
+  .filter(ee.Filter.eq(CONFIG.campoEstado, CONFIG.estadoNome));
 var geometriaJussara = jussara.geometry();
 
-var pivos = ee.FeatureCollection(CONFIG.assetPivosPositivos)
+var colecaoPivos = CONFIG.assetPivosPositivos
+  ? ee.FeatureCollection(CONFIG.assetPivosPositivos)
+  : AMOSTRAS_POSITIVAS_INLINE;
+
+var pivos = colecaoPivos
   .filterBounds(geometriaJussara)
   .map(function (feature) {
     return feature.set('classe', 1);

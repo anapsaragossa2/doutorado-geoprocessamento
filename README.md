@@ -38,11 +38,19 @@ O script [`gee/detectar_pivos_jussara_gee.js`](gee/detectar_pivos_jussara_gee.js
 1. Abra o [Google Earth Engine Code Editor](https://code.earthengine.google.com/).
 2. Copie o conteúdo de `gee/detectar_pivos_jussara_gee.js`.
 3. Ajuste no bloco `CONFIG`:
-   - `assetPivosPositivos`: caminho do asset com pivôs conhecidos.
+   - `assetPivosPositivos`: caminho de um asset **existente** com pivôs conhecidos; não use literalmente `users/SEU_USUARIO/...`.
+   - Se não tiver um asset, preencha `AMOSTRAS_POSITIVAS_INLINE` com geometrias desenhadas no Code Editor e altere `usarAmostrasPositivasInline` para `true`.
    - `assetAmostrasNegativas`: caminho opcional para amostras de não pivô.
-   - `municipiosIbge`: caso a sua malha municipal esteja em outro asset.
+   - O limite de Jussara é carregado por padrão da coleção pública `FAO/GAUL/2015/level2`; ajuste os campos apenas se trocar essa coleção.
 4. Execute o script, valide as métricas impressas no console e ajuste as amostras caso haja confusão com áreas urbanas, bordas de lavouras ou corpos d'água.
 5. Rode a tarefa `Export.image.toDrive` na aba **Tasks**.
+
+O erro `Collection.loadTable: Collection asset 'users/SEU_USUARIO/...' not
+found` significa que um texto de exemplo foi executado como se fosse um asset.
+O script agora usa `null` como padrão e interrompe imediatamente com uma mensagem
+de configuração, antes de montar o classificador. `Map.centerObject(jussara, 11)`
+não é a origem desse erro; ele apenas centraliza a visualização depois que os
+dados e o modelo foram preparados.
 
 ### Inicialização em notebooks Python/Colab
 
