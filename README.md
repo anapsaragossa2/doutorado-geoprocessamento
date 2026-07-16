@@ -108,4 +108,15 @@ python train_pivos_from_zip.py \
 
 ## Notebook de treinamento neural
 
-O notebook `Script_Doutorando_v3_15_01_26.ipynb` contém scripts em Python/Colab para retreinamento e validação visual de um modelo U-Net salvo no Google Drive.
+Os notebooks `Script_Doutorando_v3_15_01_26.ipynb` e
+`colab_gee_jussara_pivos.ipynb` contêm o mesmo fluxo autocontido para
+retreinamento e validação visual de um modelo U-Net salvo no Google Drive. A
+segunda cópia existe porque esse é o nome exibido no seletor do Colab usado no
+fluxo GEE.
+
+Se o traceback ainda mostrar literalmente o bloco
+`if not Path('train_pivos_from_zip.py').exists():`, o Colab está executando uma
+revisão antiga que ficou aberta no navegador: esse bloco não existe nas células
+de código dos notebooks atuais. Feche a guia, abra novamente o notebook na
+branch atual pelo GitHub e escolha **Ambiente de execução > Reiniciar sessão**.
+Depois execute a primeira célula antes da célula final de treinamento.
