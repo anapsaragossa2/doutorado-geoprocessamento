@@ -62,7 +62,7 @@ Antes de rodar o notebook, habilite o Earth Engine no projeto Google Cloud escol
 
 ### Treinamento a partir de um ZIP no Colab
 
-O script `train_pivos_from_zip.py` foi adicionado à raiz do repositório para evitar o erro `FileNotFoundError: train_pivos_from_zip.py não está no runtime do Colab`. O arquivo não aparece sozinho no Colab quando você abre apenas o `.ipynb`; por isso o notebook agora tem uma célula inicial que materializa `train_pivos_from_zip.py` no runtime. Alternativamente, clone o repositório ou faça upload do arquivo antes de chamar o treinamento.
+O script `train_pivos_from_zip.py` está na raiz do repositório, mas o notebook não depende mais desse arquivo para iniciar o treinamento. A primeira célula carrega a implementação embutida diretamente na função `train_from_zip`; a última célula chama essa função sem testar `Path('train_pivos_from_zip.py').exists()` e sem lançar o `FileNotFoundError` relatado. A cópia `.py` criada no runtime é apenas uma conveniência para uso via linha de comando.
 
 > **Importante:** a janela **Arquivo > Abrir notebook > GitHub** do Colab não é um
 > navegador de arquivos do repositório. Ela lista **somente arquivos `.ipynb`**.
