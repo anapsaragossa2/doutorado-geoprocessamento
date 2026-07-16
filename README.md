@@ -59,6 +59,31 @@ initialize_earth_engine(PROJECT_ID)
 
 Antes de rodar o notebook, habilite o Earth Engine no projeto Google Cloud escolhido e, no Colab, salve o ID em **Secrets** com o nome `EE_PROJECT_ID` ou passe o valor diretamente para `initialize_earth_engine()`.
 
+
+### Treinamento a partir de um ZIP no Colab
+
+O script `train_pivos_from_zip.py` foi adicionado à raiz do repositório para evitar o erro `FileNotFoundError: train_pivos_from_zip.py não está no runtime do Colab`. Ao abrir o notebook no Colab, clone o repositório ou faça upload do arquivo antes de chamar o treinamento.
+
+Estrutura esperada do ZIP:
+
+```text
+images/nome_do_chip.png
+masks/nome_do_chip.png
+```
+
+Os pares são associados pelo mesmo nome-base. Exemplo de execução no Colab após clonar o repositório:
+
+```bash
+python train_pivos_from_zip.py \
+  --zip /content/drive/MyDrive/Tese_IA_Jussara/pivos_jussara.zip \
+  --workdir /content/pivos_dataset \
+  --image-size 128 \
+  --batch-size 16 \
+  --epochs 30 \
+  --output /content/drive/MyDrive/Tese_IA_Jussara/Modelo_UNet_Pivos.keras \
+  --overwrite
+```
+
 ## Notebook de treinamento neural
 
 O notebook `Script_Doutorando_v3_15_01_26.ipynb` contém scripts em Python/Colab para retreinamento e validação visual de um modelo U-Net salvo no Google Drive.
