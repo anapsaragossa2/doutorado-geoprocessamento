@@ -64,6 +64,28 @@ Antes de rodar o notebook, habilite o Earth Engine no projeto Google Cloud escol
 
 O script `train_pivos_from_zip.py` foi adicionado à raiz do repositório para evitar o erro `FileNotFoundError: train_pivos_from_zip.py não está no runtime do Colab`. O arquivo não aparece sozinho no Colab quando você abre apenas o `.ipynb`; por isso o notebook agora tem uma célula inicial que materializa `train_pivos_from_zip.py` no runtime. Alternativamente, clone o repositório ou faça upload do arquivo antes de chamar o treinamento.
 
+> **Importante:** a janela **Arquivo > Abrir notebook > GitHub** do Colab não é um
+> navegador de arquivos do repositório. Ela lista **somente arquivos `.ipynb`**.
+> Portanto, é esperado que `README.md`, `train_pivos_from_zip.py` e a pasta `gee/`
+> não apareçam nessa tela, mesmo estando corretamente versionados na mesma branch.
+
+Para levar todos os arquivos da branch ao runtime, abra um terminal/célula no Colab
+e clone o repositório. Troque `NOME_DA_BRANCH` pela branch selecionada na janela do
+Colab (por exemplo, `codex/treinar-identificacao-de-pivos`):
+
+```bash
+!git clone --branch NOME_DA_BRANCH --single-branch \
+  https://github.com/anapsaragossa2/doutorado-geoprocessamento.git \
+  /content/doutorado-geoprocessamento
+%cd /content/doutorado-geoprocessamento
+!git ls-files
+```
+
+Em repositório particular, o `git clone` exige autenticação do GitHub. Nesse caso,
+a célula inicial do notebook continua sendo a opção mais simples: ela cria uma
+cópia autocontida de `train_pivos_from_zip.py` sem depender do clone. Depois de
+executá-la, confirme o arquivo no runtime com `!ls -l train_pivos_from_zip.py`.
+
 Estrutura esperada do ZIP:
 
 ```text
