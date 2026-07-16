@@ -53,6 +53,8 @@ O script [`gee/marcar_amostras_pivos_gee.js`](gee/marcar_amostras_pivos_gee.js)
 abre um painel de rotulagem no Code Editor. Desenhe um polígono no mapa e use os
 botões **Adicionar como PIVÔ** (classe `1`) ou **Adicionar como NÃO PIVÔ**
 (classe `0`). Ao terminar, exporte a coleção para um Asset ou para o Drive.
+Internamente, a camada de desenho usa o nome alfanumérico `DesenhoAtual`, pois o
+GEE não aceita espaços ou caracteres acentuados no nome de uma `GeometryLayer`.
 
 Para um treinamento útil, marque exemplos distribuídos pelo município e mantenha
 as duas classes razoavelmente equilibradas. Na classe `1`, inclua pivôs com solo

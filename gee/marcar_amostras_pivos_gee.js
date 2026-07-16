@@ -53,7 +53,8 @@ drawingTools.setDrawModes(['polygon', 'rectangle']);
 drawingTools.layers().reset();
 var rascunho = ui.Map.GeometryLayer({
   geometries: null,
-  name: 'Desenho atual',
+  // GeometryLayer aceita apenas nome alfanumérico iniciado por uma letra.
+  name: 'DesenhoAtual',
   color: 'ffff00'
 });
 drawingTools.layers().add(rascunho);
