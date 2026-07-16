@@ -120,7 +120,8 @@ function validarAmostras() {
 
 function exportarAsset() {
   if (!validarAmostras()) return;
-  var destino = assetId.getValue().trim();
+  // getValue() retorna undefined enquanto o campo ainda não foi preenchido.
+  var destino = String(assetId.getValue() || '').trim();
   if (destino.indexOf('projects/') !== 0 || destino.indexOf('/assets/') === -1) {
     atualizarStatus('Informe um Asset ID no formato projects/.../assets/...');
     return;

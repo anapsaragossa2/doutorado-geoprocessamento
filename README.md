@@ -55,6 +55,8 @@ botões **Adicionar como PIVÔ** (classe `1`) ou **Adicionar como NÃO PIVÔ**
 (classe `0`). Ao terminar, exporte a coleção para um Asset ou para o Drive.
 Internamente, a camada de desenho usa o nome alfanumérico `DesenhoAtual`, pois o
 GEE não aceita espaços ou caracteres acentuados no nome de uma `GeometryLayer`.
+O campo **Asset ID de saída** precisa ser preenchido antes da exportação para
+Asset; se ficar vazio, o painel mostra a orientação sem encerrar o aplicativo.
 
 Para um treinamento útil, marque exemplos distribuídos pelo município e mantenha
 as duas classes razoavelmente equilibradas. Na classe `1`, inclua pivôs com solo
