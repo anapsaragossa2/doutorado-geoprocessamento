@@ -23,10 +23,11 @@ O script [`gee/detectar_pivos_jussara_gee.js`](gee/detectar_pivos_jussara_gee.js
    - Calcula desvio padrão espacial com kernels circulares de 3 e 7 pixels.
    - Essas camadas ajudam o Random Forest a aprender bordas circulares e transições abruptas típicas de pivôs.
 
-4. **Classificação supervisionada**
+4. **Classificação adaptativa**
    - Extrai os valores das bandas originais, índices e texturas nas amostras.
    - Divide amostras em treino/teste.
-   - Treina `ee.Classifier.smileRandomForest()` e imprime matriz de confusão, acurácia, Kappa e importância das variáveis.
+   - Com amostras positivas, treina `ee.Classifier.smileRandomForest()` e imprime matriz de confusão, acurácia, Kappa e importância das variáveis.
+   - Sem amostras, usa bordas Canny e estatísticas em um kernel circular para produzir candidatos sem interromper a execução.
 
 5. **Pós-processamento**
    - Classifica Jussara inteira.
@@ -47,10 +48,13 @@ O script [`gee/detectar_pivos_jussara_gee.js`](gee/detectar_pivos_jussara_gee.js
 
 O erro `Collection.loadTable: Collection asset 'users/SEU_USUARIO/...' not
 found` significa que um texto de exemplo foi executado como se fosse um asset.
-O script agora usa `null` como padrão e interrompe imediatamente com uma mensagem
-de configuração, antes de montar o classificador. `Map.centerObject(jussara, 11)`
-não é a origem desse erro; ele apenas centraliza a visualização depois que os
-dados e o modelo foram preparados.
+O script agora usa `null` como padrão. Sem amostras positivas, ele não interrompe
+a execução: muda automaticamente para uma detecção não supervisionada baseada em
+bordas Canny, densidade de bordas e variação de NDVI dentro de uma janela circular.
+Nesse modo não existe matriz de confusão, pois não há rótulos de referência. Ao
+informar amostras positivas, o fluxo volta automaticamente ao Random Forest.
+`Map.centerObject(jussara, 11)` não é a origem do erro; ele apenas centraliza a
+visualização depois que os dados e o modelo foram preparados.
 
 ### Inicialização em notebooks Python/Colab
 

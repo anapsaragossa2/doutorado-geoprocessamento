@@ -23,6 +23,14 @@ var CONFIG = {
   assetPivosPositivos: null,
   usarAmostrasPositivasInline: false,
 
+  // Sem amostras positivas, o script muda automaticamente para o modo não
+  // supervisionado e procura bordas/variação dentro de uma janela circular.
+  raioCircularPixels: 35,
+  limiarCanny: 0.08,
+  densidadeBordaMinima: 0.025,
+  densidadeBordaMaxima: 0.35,
+  desvioNdviMinimo: 0.035,
+
   // Opcional: substitua por polígonos/pontos de não pivô (pastagem, mata, urbano etc.).
   // Com null, o script gera amostras negativas aleatórias. Um caminho inexistente
   // sempre produz Collection.loadTable; portanto, não use um placeholder aqui.
@@ -52,13 +60,9 @@ var AMOSTRAS_POSITIVAS_INLINE = ee.FeatureCollection([
   // ee.Feature(geometry2)
 ]);
 
-if (!CONFIG.assetPivosPositivos && !CONFIG.usarAmostrasPositivasInline) {
-  throw new Error(
-    'CONFIGURAÇÃO INCOMPLETA: informe CONFIG.assetPivosPositivos com um asset ' +
-    'existente ou preencha AMOSTRAS_POSITIVAS_INLINE e defina ' +
-    'CONFIG.usarAmostrasPositivasInline = true.'
-  );
-}
+var modoSupervisionado = Boolean(
+  CONFIG.assetPivosPositivos || CONFIG.usarAmostrasPositivasInline
+);
 
 // -----------------------------------------------------------------------------
 // 2. ÁREA DE ESTUDO E AMOSTRAS
@@ -69,9 +73,11 @@ var jussara = municipios
   .filter(ee.Filter.eq(CONFIG.campoEstado, CONFIG.estadoNome));
 var geometriaJussara = jussara.geometry();
 
-var colecaoPivos = CONFIG.assetPivosPositivos
-  ? ee.FeatureCollection(CONFIG.assetPivosPositivos)
-  : AMOSTRAS_POSITIVAS_INLINE;
+var colecaoPivos = modoSupervisionado
+  ? (CONFIG.assetPivosPositivos
+    ? ee.FeatureCollection(CONFIG.assetPivosPositivos)
+    : AMOSTRAS_POSITIVAS_INLINE)
+  : ee.FeatureCollection([]);
 
 var pivos = colecaoPivos
   .filterBounds(geometriaJussara)
@@ -79,16 +85,19 @@ var pivos = colecaoPivos
     return feature.set('classe', 1);
   });
 
-var negativos = CONFIG.assetAmostrasNegativas
-  ? ee.FeatureCollection(CONFIG.assetAmostrasNegativas)
-    .filterBounds(geometriaJussara)
-    .map(function (feature) { return feature.set('classe', 0); })
-  : ee.FeatureCollection.randomPoints({
-    region: geometriaJussara.difference(pivos.geometry().buffer(250), 1),
-    points: CONFIG.quantidadeNegativos,
-    seed: CONFIG.sementes.negativos,
-    maxError: 10
-  }).map(function (feature) { return feature.set('classe', 0); });
+var negativos = ee.FeatureCollection([]);
+if (modoSupervisionado) {
+  negativos = CONFIG.assetAmostrasNegativas
+    ? ee.FeatureCollection(CONFIG.assetAmostrasNegativas)
+      .filterBounds(geometriaJussara)
+      .map(function (feature) { return feature.set('classe', 0); })
+    : ee.FeatureCollection.randomPoints({
+      region: geometriaJussara.difference(pivos.geometry().buffer(250), 1),
+      points: CONFIG.quantidadeNegativos,
+      seed: CONFIG.sementes.negativos,
+      maxError: 10
+    }).map(function (feature) { return feature.set('classe', 0); });
+}
 
 var amostras = pivos.merge(negativos);
 
@@ -163,38 +172,81 @@ var textura = texturaGlcm(base, 'B8')
 var preditores = base.addBands(textura).select(CONFIG.bandasPreditoras);
 
 // -----------------------------------------------------------------------------
-// 5. TREINAMENTO RANDOM FOREST, CLASSIFICAÇÃO E PÓS-PROCESSAMENTO
+// 5. CLASSIFICAÇÃO SUPERVISIONADA OU DETECÇÃO CIRCULAR NÃO SUPERVISIONADA
 // -----------------------------------------------------------------------------
-var dadosTreinamento = preditores.sampleRegions({
-  collection: amostras,
-  properties: ['classe'],
-  scale: CONFIG.escala,
-  tileScale: 4,
-  geometries: true
-}).randomColumn('aleatorio', CONFIG.sementes.treinoTeste);
+var classificado;
 
-var treino = dadosTreinamento.filter(ee.Filter.lt('aleatorio', CONFIG.probabilidadeTreino));
-var teste = dadosTreinamento.filter(ee.Filter.gte('aleatorio', CONFIG.probabilidadeTreino));
+if (modoSupervisionado) {
+  print('Modo de detecção', 'Supervisionado (Random Forest)');
+  var dadosTreinamento = preditores.sampleRegions({
+    collection: amostras,
+    properties: ['classe'],
+    scale: CONFIG.escala,
+    tileScale: 4,
+    geometries: true
+  }).randomColumn('aleatorio', CONFIG.sementes.treinoTeste);
 
-var classificador = ee.Classifier.smileRandomForest({
-  numberOfTrees: 250,
-  variablesPerSplit: 5,
-  minLeafPopulation: 2,
-  bagFraction: 0.65,
-  seed: CONFIG.sementes.randomForest
-}).train({
-  features: treino,
-  classProperty: 'classe',
-  inputProperties: CONFIG.bandasPreditoras
-});
+  var treino = dadosTreinamento.filter(ee.Filter.lt('aleatorio', CONFIG.probabilidadeTreino));
+  var teste = dadosTreinamento.filter(ee.Filter.gte('aleatorio', CONFIG.probabilidadeTreino));
 
-var matrizConfusao = teste.classify(classificador).errorMatrix('classe', 'classification');
-print('Matriz de confusão', matrizConfusao);
-print('Acurácia global', matrizConfusao.accuracy());
-print('Kappa', matrizConfusao.kappa());
-print('Importância das variáveis', classificador.explain().get('importance'));
+  var classificador = ee.Classifier.smileRandomForest({
+    numberOfTrees: 250,
+    variablesPerSplit: 5,
+    minLeafPopulation: 2,
+    bagFraction: 0.65,
+    seed: CONFIG.sementes.randomForest
+  }).train({
+    features: treino,
+    classProperty: 'classe',
+    inputProperties: CONFIG.bandasPreditoras
+  });
 
-var classificado = preditores.classify(classificador).rename('pivo');
+  var matrizConfusao = teste.classify(classificador)
+    .errorMatrix('classe', 'classification');
+  print('Matriz de confusão', matrizConfusao);
+  print('Acurácia global', matrizConfusao.accuracy());
+  print('Kappa', matrizConfusao.kappa());
+  print('Importância das variáveis', classificador.explain().get('importance'));
+  classificado = preditores.classify(classificador).rename('pivo');
+} else {
+  print(
+    'Modo de detecção',
+    'Não supervisionado: correlação espacial em janela circular (sem matriz de confusão)'
+  );
+
+  var bordasNdvi = ee.Algorithms.CannyEdgeDetector({
+    image: ndvi,
+    threshold: CONFIG.limiarCanny,
+    sigma: 1
+  });
+  var kernelCircular = ee.Kernel.circle({
+    radius: CONFIG.raioCircularPixels,
+    units: 'pixels',
+    normalize: true
+  });
+  var densidadeBordas = bordasNdvi.reduceNeighborhood({
+    reducer: ee.Reducer.mean(),
+    kernel: kernelCircular,
+    skipMasked: true
+  }).rename('densidade_bordas_circular');
+  var variacaoCircular = ndvi.reduceNeighborhood({
+    reducer: ee.Reducer.stdDev(),
+    kernel: kernelCircular,
+    skipMasked: true
+  }).rename('variacao_ndvi_circular');
+
+  classificado = densidadeBordas.gte(CONFIG.densidadeBordaMinima)
+    .and(densidadeBordas.lte(CONFIG.densidadeBordaMaxima))
+    .and(variacaoCircular.gte(CONFIG.desvioNdviMinimo))
+    .rename('pivo');
+
+  Map.addLayer(
+    densidadeBordas,
+    {min: 0, max: CONFIG.densidadeBordaMaxima, palette: ['000000', 'ffff00', 'ff0000']},
+    'Diagnóstico: densidade de bordas circular',
+    false
+  );
+}
 var pivosLimpos = classificado.eq(1)
   .focal_min({radius: 1, units: 'pixels'})
   .focal_max({radius: 2, units: 'pixels'})
