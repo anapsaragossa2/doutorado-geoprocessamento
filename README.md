@@ -39,12 +39,30 @@ O script [`gee/detectar_pivos_jussara_gee.js`](gee/detectar_pivos_jussara_gee.js
 1. Abra o [Google Earth Engine Code Editor](https://code.earthengine.google.com/).
 2. Copie o conteúdo de `gee/detectar_pivos_jussara_gee.js`.
 3. Ajuste no bloco `CONFIG`:
+   - `assetAmostrasRotuladas`: opção recomendada para a coleção criada pelo painel de marcação, contendo `classe = 1` e `classe = 0`.
    - `assetPivosPositivos`: caminho de um asset **existente** com pivôs conhecidos; não use literalmente `users/SEU_USUARIO/...`.
    - Se não tiver um asset, preencha `AMOSTRAS_POSITIVAS_INLINE` com geometrias desenhadas no Code Editor e altere `usarAmostrasPositivasInline` para `true`.
    - `assetAmostrasNegativas`: caminho opcional para amostras de não pivô.
    - O limite de Jussara é carregado por padrão da coleção pública `FAO/GAUL/2015/level2`; ajuste os campos apenas se trocar essa coleção.
 4. Execute o script, valide as métricas impressas no console e ajuste as amostras caso haja confusão com áreas urbanas, bordas de lavouras ou corpos d'água.
 5. Rode a tarefa `Export.image.toDrive` na aba **Tasks**.
+
+### Marcar pivôs e não pivôs diretamente no GEE
+
+O script [`gee/marcar_amostras_pivos_gee.js`](gee/marcar_amostras_pivos_gee.js)
+abre um painel de rotulagem no Code Editor. Desenhe um polígono no mapa e use os
+botões **Adicionar como PIVÔ** (classe `1`) ou **Adicionar como NÃO PIVÔ**
+(classe `0`). Ao terminar, exporte a coleção para um Asset ou para o Drive.
+
+Para um treinamento útil, marque exemplos distribuídos pelo município e mantenha
+as duas classes razoavelmente equilibradas. Na classe `1`, inclua pivôs com solo
+exposto, cultura em crescimento e vegetação vigorosa. Na classe `0`, inclua
+pastagens, matas, área urbana, rios, lavouras retangulares e círculos que não sejam
+pivôs. Evite polígonos atravessando a borda entre duas classes.
+
+Depois da exportação para Asset, copie o caminho gerado para
+`CONFIG.assetAmostrasRotuladas` em `detectar_pivos_jussara_gee.js`. O detector
+separa automaticamente `classe = 1` e `classe = 0` e executa o Random Forest.
 
 O erro `Collection.loadTable: Collection asset 'users/SEU_USUARIO/...' not
 found` significa que um texto de exemplo foi executado como se fosse um asset.

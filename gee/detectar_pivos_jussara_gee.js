@@ -20,6 +20,9 @@ var CONFIG = {
 
   // Informe um asset real OU use as amostras inline definidas logo abaixo.
   // Nunca deixe aqui o texto de exemplo "users/SEU_USUARIO/...".
+  // Se você usou marcar_amostras_pivos_gee.js, informe o asset combinado aqui;
+  // ele deve conter a propriedade `classe` (1 = pivô; 0 = não pivô).
+  assetAmostrasRotuladas: null,
   assetPivosPositivos: null,
   usarAmostrasPositivasInline: false,
 
@@ -61,7 +64,9 @@ var AMOSTRAS_POSITIVAS_INLINE = ee.FeatureCollection([
 ]);
 
 var modoSupervisionado = Boolean(
-  CONFIG.assetPivosPositivos || CONFIG.usarAmostrasPositivasInline
+  CONFIG.assetAmostrasRotuladas ||
+  CONFIG.assetPivosPositivos ||
+  CONFIG.usarAmostrasPositivasInline
 );
 
 // -----------------------------------------------------------------------------
@@ -73,10 +78,16 @@ var jussara = municipios
   .filter(ee.Filter.eq(CONFIG.campoEstado, CONFIG.estadoNome));
 var geometriaJussara = jussara.geometry();
 
+var amostrasRotuladas = CONFIG.assetAmostrasRotuladas
+  ? ee.FeatureCollection(CONFIG.assetAmostrasRotuladas).filterBounds(geometriaJussara)
+  : null;
+
 var colecaoPivos = modoSupervisionado
-  ? (CONFIG.assetPivosPositivos
+  ? (amostrasRotuladas
+    ? amostrasRotuladas.filter(ee.Filter.eq('classe', 1))
+    : (CONFIG.assetPivosPositivos
     ? ee.FeatureCollection(CONFIG.assetPivosPositivos)
-    : AMOSTRAS_POSITIVAS_INLINE)
+    : AMOSTRAS_POSITIVAS_INLINE))
   : ee.FeatureCollection([]);
 
 var pivos = colecaoPivos
@@ -87,7 +98,9 @@ var pivos = colecaoPivos
 
 var negativos = ee.FeatureCollection([]);
 if (modoSupervisionado) {
-  negativos = CONFIG.assetAmostrasNegativas
+  negativos = amostrasRotuladas
+    ? amostrasRotuladas.filter(ee.Filter.eq('classe', 0))
+    : (CONFIG.assetAmostrasNegativas
     ? ee.FeatureCollection(CONFIG.assetAmostrasNegativas)
       .filterBounds(geometriaJussara)
       .map(function (feature) { return feature.set('classe', 0); })
@@ -96,7 +109,7 @@ if (modoSupervisionado) {
       points: CONFIG.quantidadeNegativos,
       seed: CONFIG.sementes.negativos,
       maxError: 10
-    }).map(function (feature) { return feature.set('classe', 0); });
+    }).map(function (feature) { return feature.set('classe', 0); }));
 }
 
 var amostras = pivos.merge(negativos);
