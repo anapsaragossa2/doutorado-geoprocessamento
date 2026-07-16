@@ -44,6 +44,21 @@ O script [`gee/detectar_pivos_jussara_gee.js`](gee/detectar_pivos_jussara_gee.js
 4. Execute o script, valide as métricas impressas no console e ajuste as amostras caso haja confusão com áreas urbanas, bordas de lavouras ou corpos d'água.
 5. Rode a tarefa `Export.image.toDrive` na aba **Tasks**.
 
+### Inicialização em notebooks Python/Colab
+
+Se você executar etapas do Earth Engine pela API Python, inicialize o `ee` com um projeto Google Cloud explícito. O erro `EEException: ee.Initialize: no project found` indica que `ee.Initialize()` foi chamado sem `project=`.
+
+```python
+import ee
+from google.colab import userdata
+from gee.earth_engine_colab_init import initialize_earth_engine
+
+PROJECT_ID = userdata.get('EE_PROJECT_ID')  # ou use 'meu-projeto-gcp' diretamente
+initialize_earth_engine(PROJECT_ID)
+```
+
+Antes de rodar o notebook, habilite o Earth Engine no projeto Google Cloud escolhido e, no Colab, salve o ID em **Secrets** com o nome `EE_PROJECT_ID` ou passe o valor diretamente para `initialize_earth_engine()`.
+
 ## Notebook de treinamento neural
 
 O notebook `Script_Doutorando_v3_15_01_26.ipynb` contém scripts em Python/Colab para retreinamento e validação visual de um modelo U-Net salvo no Google Drive.
