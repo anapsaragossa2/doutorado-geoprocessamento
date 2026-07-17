@@ -55,6 +55,14 @@ var CONFIG = {
   ]
 };
 
+// Ao importar o SHP no Code Editor, defina o nome da variável como
+// `final_pivos3`. O `typeof` permite que o script também rode quando a importação
+// ainda não existe. O SHP é tratado como a classe positiva; as amostras negativas
+// continuam sendo geradas automaticamente quando não houver um asset negativo.
+var PIVOS_IMPORTADOS = typeof final_pivos3 !== 'undefined'
+  ? ee.FeatureCollection(final_pivos3)
+  : null;
+
 // Alternativa ao asset: cole aqui pontos ou polígonos desenhados/importados no
 // Code Editor e altere `usarAmostrasPositivasInline` para true. Exemplo:
 // ee.Feature(ee.Geometry.Point([-50.0, -15.0]))
@@ -65,6 +73,7 @@ var AMOSTRAS_POSITIVAS_INLINE = ee.FeatureCollection([
 
 var modoSupervisionado = Boolean(
   CONFIG.assetAmostrasRotuladas ||
+  PIVOS_IMPORTADOS ||
   CONFIG.assetPivosPositivos ||
   CONFIG.usarAmostrasPositivasInline
 );
@@ -85,9 +94,11 @@ var amostrasRotuladas = CONFIG.assetAmostrasRotuladas
 var colecaoPivos = modoSupervisionado
   ? (amostrasRotuladas
     ? amostrasRotuladas.filter(ee.Filter.eq('classe', 1))
+    : (PIVOS_IMPORTADOS
+    ? PIVOS_IMPORTADOS
     : (CONFIG.assetPivosPositivos
     ? ee.FeatureCollection(CONFIG.assetPivosPositivos)
-    : AMOSTRAS_POSITIVAS_INLINE))
+    : AMOSTRAS_POSITIVAS_INLINE)))
   : ee.FeatureCollection([]);
 
 var pivos = colecaoPivos
@@ -191,6 +202,11 @@ var classificado;
 
 if (modoSupervisionado) {
   print('Modo de detecção', 'Supervisionado (Random Forest)');
+  print('Quantidade de feições positivas', pivos.size());
+  print('Quantidade de feições negativas', negativos.size());
+  if (PIVOS_IMPORTADOS) {
+    print('Fonte positiva', 'SHP importado na variável final_pivos3');
+  }
   var dadosTreinamento = preditores.sampleRegions({
     collection: amostras,
     properties: ['classe'],

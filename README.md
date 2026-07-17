@@ -68,6 +68,25 @@ Depois da exportação para Asset, copie o caminho gerado para
 `CONFIG.assetAmostrasRotuladas` em `detectar_pivos_jussara_gee.js`. O detector
 separa automaticamente `classe = 1` e `classe = 0` e executa o Random Forest.
 
+### Usar o SHP `final_pivos3` como treinamento
+
+Se a marcação manual não produzir bons resultados, compacte juntos os arquivos
+do shapefile (`.shp`, `.shx`, `.dbf` e `.prj`) e envie o ZIP pela aba **Assets**
+do Earth Engine. Depois, importe a tabela no Code Editor e altere o nome da
+variável importada para `final_pivos3` — com sublinhado e sem espaço.
+
+O detector reconhece automaticamente essa variável e trata todos os polígonos do
+SHP como `classe = 1` (pivô). Não é necessário preencher
+`assetPivosPositivos`. Na ausência de uma coleção negativa, o script gera pontos
+de `classe = 0` fora dos pivôs e do buffer de 250 metros. Se preferir usar o
+Asset sem importá-lo pela interface, copie seu ID completo, no formato
+`projects/SEU_PROJETO/assets/final_pivos3`, para `assetPivosPositivos`.
+
+Antes do treinamento, confira se os polígonos aparecem na camada **Amostras
+positivas**, se estão dentro de Jussara e se representam apenas pivôs. O nome
+visível do Asset pode ser `final_pivos3`, mas o código sempre precisa da variável
+importada ou do ID completo — apenas o texto curto não é um endereço de Asset.
+
 O erro `Collection.loadTable: Collection asset 'users/SEU_USUARIO/...' not
 found` significa que um texto de exemplo foi executado como se fosse um asset.
 O script agora usa `null` como padrão. Sem amostras positivas, ele não interrompe
