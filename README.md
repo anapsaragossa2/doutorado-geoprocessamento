@@ -47,22 +47,23 @@ O script [`gee/detectar_pivos_jussara_gee.js`](gee/detectar_pivos_jussara_gee.js
 4. Execute o script, valide as métricas impressas no console e ajuste as amostras caso haja confusão com áreas urbanas, bordas de lavouras ou corpos d'água.
 5. Rode a tarefa `Export.image.toDrive` na aba **Tasks**.
 
-### Marcar pivôs e não pivôs diretamente no GEE
+### Usar o SHP para pivôs e marcar somente não pivôs no GEE
 
 O script [`gee/marcar_amostras_pivos_gee.js`](gee/marcar_amostras_pivos_gee.js)
-abre um painel de rotulagem no Code Editor. Desenhe um polígono no mapa e use os
-botões **Adicionar como PIVÔ** (classe `1`) ou **Adicionar como NÃO PIVÔ**
-(classe `0`). Ao terminar, exporte a coleção para um Asset ou para o Drive.
+abre um painel de rotulagem no Code Editor. Nesse fluxo, os pivôs positivos vêm
+do SHP importado como `final_pivos3`; no mapa você desenha somente áreas negativas
+e usa o botão **Adicionar como NÃO PIVÔ** (`classe = 0`). Ao terminar, o painel
+combina os polígonos do SHP (`classe = 1`) com os desenhos (`classe = 0`) e exporta
+uma única coleção para Asset ou Drive.
 Internamente, a camada de desenho usa o nome alfanumérico `DesenhoAtual`, pois o
 GEE não aceita espaços ou caracteres acentuados no nome de uma `GeometryLayer`.
 O campo **Asset ID de saída** precisa ser preenchido antes da exportação para
 Asset; se ficar vazio, o painel mostra a orientação sem encerrar o aplicativo.
 
-Para um treinamento útil, marque exemplos distribuídos pelo município e mantenha
-as duas classes razoavelmente equilibradas. Na classe `1`, inclua pivôs com solo
-exposto, cultura em crescimento e vegetação vigorosa. Na classe `0`, inclua
-pastagens, matas, área urbana, rios, lavouras retangulares e círculos que não sejam
-pivôs. Evite polígonos atravessando a borda entre duas classes.
+Para um treinamento útil, distribua os não pivôs pelo município e inclua pastagens,
+matas, área urbana, rios, lavouras retangulares e círculos que não sejam pivôs.
+Evite polígonos atravessando a borda entre duas classes e procure produzir uma
+quantidade de áreas negativas compatível com a diversidade do SHP positivo.
 
 Depois da exportação para Asset, copie o caminho gerado para
 `CONFIG.assetAmostrasRotuladas` em `detectar_pivos_jussara_gee.js`. O detector

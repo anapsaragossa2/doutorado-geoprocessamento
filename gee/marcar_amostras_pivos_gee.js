@@ -1,11 +1,12 @@
 /****
- * Marcação interativa de pivôs e não pivôs no Google Earth Engine Code Editor.
+ * Marcação interativa de NÃO PIVÔS no Google Earth Engine Code Editor.
+ * Os pivôs positivos vêm do SHP importado na variável `final_pivos3`.
  *
  * Uso:
  * 1. Execute o script.
  * 2. Desenhe um polígono com a ferramenta exibida no mapa.
- * 3. Clique em "Adicionar como PIVÔ" ou "Adicionar como NÃO PIVÔ".
- * 4. Repita em áreas variadas e exporte a coleção para um Asset.
+ * 3. Clique em "Adicionar como NÃO PIVÔ".
+ * 4. Repita e exporte uma coleção combinada (SHP = 1; desenhos = 0).
  ****/
 
 var CONFIG = {
@@ -19,6 +20,20 @@ var jussara = ee.FeatureCollection(CONFIG.municipios)
   .filter(ee.Filter.eq('ADM2_NAME', CONFIG.municipio))
   .filter(ee.Filter.eq('ADM1_NAME', CONFIG.estado));
 var regiao = jussara.geometry();
+
+// Importe o SHP pela aba Assets e renomeie a variável para `final_pivos3`.
+// `typeof` evita erro de referência e permite mostrar uma orientação no painel.
+var PIVOS_SHP = typeof final_pivos3 !== 'undefined'
+  ? ee.FeatureCollection(final_pivos3)
+    .filterBounds(regiao)
+    .map(function (feature) {
+      return feature.set({
+        classe: 1,
+        rotulo: 'pivo',
+        fonte: 'final_pivos3'
+      });
+    })
+  : null;
 
 function mascararS2(image) {
   var scl = image.select('SCL');
@@ -46,6 +61,9 @@ Map.centerObject(jussara, 11);
 Map.addLayer(mosaico, {bands: ['B4', 'B3', 'B2'], min: 0.02, max: 0.3}, 'RGB 2025');
 Map.addLayer(ndvi, {min: 0, max: 0.9, palette: ['8b4513', 'ffff99', '006400']}, 'NDVI', false);
 Map.addLayer(jussara.style({color: 'ffffff', fillColor: '00000000'}), {}, 'Limite de Jussara');
+if (PIVOS_SHP) {
+  Map.addLayer(PIVOS_SHP.style({color: '00ff00', fillColor: '00ff0033'}), {}, 'Pivôs do SHP');
+}
 
 var drawingTools = Map.drawingTools();
 drawingTools.setShown(true);
@@ -62,13 +80,13 @@ drawingTools.setShape('polygon');
 drawingTools.draw();
 
 var amostras = [];
-var contadorPivos = 0;
 var contadorNaoPivos = 0;
-var status = ui.Label('Pivôs: 0 | Não pivôs: 0');
+var status = ui.Label('Não pivôs marcados: 0');
 
 function atualizarStatus(mensagem) {
   status.setValue(
-    'Pivôs: ' + contadorPivos + ' | Não pivôs: ' + contadorNaoPivos +
+    'SHP final_pivos3: ' + (PIVOS_SHP ? 'carregado' : 'não importado') +
+    ' | Não pivôs marcados: ' + contadorNaoPivos +
     (mensagem ? '\n' + mensagem : '')
   );
 }
@@ -79,43 +97,45 @@ function limparRascunho() {
   drawingTools.draw();
 }
 
-function adicionarAmostra(classe) {
+function adicionarNaoPivo() {
   if (rascunho.geometries().length() === 0) {
     atualizarStatus('Desenhe um polígono antes de adicionar.');
     return;
   }
 
   var geometria = rascunho.getEeObject();
-  var rotulo = classe === 1 ? 'pivo' : 'nao_pivo';
   amostras.push(ee.Feature(geometria, {
-    classe: classe,
-    rotulo: rotulo,
+    classe: 0,
+    rotulo: 'nao_pivo',
     fonte: 'marcacao_manual',
     ano_referencia: CONFIG.ano
   }));
 
-  if (classe === 1) {
-    contadorPivos += 1;
-    Map.addLayer(geometria, {color: '00ff00'}, 'Pivô ' + contadorPivos);
-  } else {
-    contadorNaoPivos += 1;
-    Map.addLayer(geometria, {color: 'ff0000'}, 'Não pivô ' + contadorNaoPivos);
-  }
+  contadorNaoPivos += 1;
+  Map.addLayer(geometria, {color: 'ff0000'}, 'Não pivô ' + contadorNaoPivos);
   limparRascunho();
   atualizarStatus('Amostra adicionada. Continue desenhando.');
 }
 
 var assetId = ui.Textbox({
-  placeholder: 'projects/SEU_PROJETO/assets/amostras_pivos_jussara',
+  placeholder: 'projects/SEU_PROJETO/assets/final_pivos3_rotulado',
   style: {stretch: 'horizontal'}
 });
 
 function validarAmostras() {
-  if (contadorPivos === 0 || contadorNaoPivos === 0) {
-    atualizarStatus('Marque pelo menos um pivô e um não pivô antes de exportar.');
+  if (!PIVOS_SHP) {
+    atualizarStatus('Importe o SHP no script com o nome final_pivos3 antes de exportar.');
+    return false;
+  }
+  if (contadorNaoPivos === 0) {
+    atualizarStatus('Marque pelo menos um não pivô antes de exportar.');
     return false;
   }
   return true;
+}
+
+function colecaoRotulada() {
+  return PIVOS_SHP.merge(ee.FeatureCollection(amostras));
 }
 
 function exportarAsset() {
@@ -127,7 +147,7 @@ function exportarAsset() {
     return;
   }
   Export.table.toAsset({
-    collection: ee.FeatureCollection(amostras),
+    collection: colecaoRotulada(),
     description: 'amostras_pivos_jussara',
     assetId: destino
   });
@@ -137,7 +157,7 @@ function exportarAsset() {
 function exportarDrive() {
   if (!validarAmostras()) return;
   Export.table.toDrive({
-    collection: ee.FeatureCollection(amostras),
+    collection: colecaoRotulada(),
     description: 'amostras_pivos_jussara',
     folder: 'GEE_exports',
     fileFormat: 'GeoJSON'
@@ -147,13 +167,12 @@ function exportarDrive() {
 
 var painel = ui.Panel({
   widgets: [
-    ui.Label('Treinamento de identificação de pivôs', {fontWeight: 'bold', fontSize: '16px'}),
+    ui.Label('Marcar objetos que NÃO são pivôs', {fontWeight: 'bold', fontSize: '16px'}),
     ui.Label(
-      'Desenhe polígonos pequenos e homogêneos. Inclua pivôs em diferentes fases ' +
-      'da cultura e não pivôs como pastagem, mata, urbano, rios e lavouras comuns.'
+      'Os pivôs positivos são carregados do SHP final_pivos3. Desenhe polígonos ' +
+      'pequenos em pastagem, mata, urbano, rios e lavouras comuns.'
     ),
-    ui.Button('Adicionar como PIVÔ', function () { adicionarAmostra(1); }, false, {stretch: 'horizontal'}),
-    ui.Button('Adicionar como NÃO PIVÔ', function () { adicionarAmostra(0); }, false, {stretch: 'horizontal'}),
+    ui.Button('Adicionar como NÃO PIVÔ', adicionarNaoPivo, false, {stretch: 'horizontal'}),
     ui.Button('Limpar desenho atual', limparRascunho, false, {stretch: 'horizontal'}),
     status,
     ui.Label('Asset ID de saída:'),
@@ -165,4 +184,9 @@ var painel = ui.Panel({
 });
 
 ui.root.insert(0, painel);
+atualizarStatus(
+  PIVOS_SHP
+    ? 'Desenhe agora somente exemplos de não pivô.'
+    : 'Importe o SHP pela aba Assets com o nome final_pivos3.'
+);
 print('Amostras serão exportadas com classe 1 (pivô) e classe 0 (não pivô).');
