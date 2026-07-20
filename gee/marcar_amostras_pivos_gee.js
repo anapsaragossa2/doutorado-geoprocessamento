@@ -13,7 +13,9 @@ var CONFIG = {
   ano: 2025,
   municipio: 'Jussara',
   estado: 'Goias',
-  municipios: 'FAO/GAUL/2015/level2'
+  municipios: 'FAO/GAUL/2015/level2',
+  // Asset positivo informado para o projeto. Não requer importação manual.
+  assetPivosPositivos: 'projects/sefazgogeoprocessamento/assets/final_pivos3'
 };
 
 var jussara = ee.FeatureCollection(CONFIG.municipios)
@@ -21,19 +23,18 @@ var jussara = ee.FeatureCollection(CONFIG.municipios)
   .filter(ee.Filter.eq('ADM1_NAME', CONFIG.estado));
 var regiao = jussara.geometry();
 
-// Importe o SHP pela aba Assets e renomeie a variável para `final_pivos3`.
-// `typeof` evita erro de referência e permite mostrar uma orientação no painel.
+// O Asset configurado é usado diretamente. Uma variável importada chamada
+// `final_pivos3`, se existir, tem prioridade para permitir uma revisão alternativa.
 var PIVOS_SHP = typeof final_pivos3 !== 'undefined'
   ? ee.FeatureCollection(final_pivos3)
-    .filterBounds(regiao)
-    .map(function (feature) {
-      return feature.set({
-        classe: 1,
-        rotulo: 'pivo',
-        fonte: 'final_pivos3'
-      });
-    })
-  : null;
+  : ee.FeatureCollection(CONFIG.assetPivosPositivos);
+PIVOS_SHP = PIVOS_SHP.filterBounds(regiao).map(function (feature) {
+  return feature.set({
+    classe: 1,
+    rotulo: 'pivo',
+    fonte: 'final_pivos3'
+  });
+});
 
 function mascararS2(image) {
   var scl = image.select('SCL');
@@ -185,8 +186,6 @@ var painel = ui.Panel({
 
 ui.root.insert(0, painel);
 atualizarStatus(
-  PIVOS_SHP
-    ? 'Desenhe agora somente exemplos de não pivô.'
-    : 'Importe o SHP pela aba Assets com o nome final_pivos3.'
+  'SHP de pivôs carregado. Desenhe agora somente exemplos de não pivô.'
 );
 print('Amostras serão exportadas com classe 1 (pivô) e classe 0 (não pivô).');

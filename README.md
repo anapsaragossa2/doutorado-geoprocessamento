@@ -40,7 +40,9 @@ O script [`gee/detectar_pivos_jussara_gee.js`](gee/detectar_pivos_jussara_gee.js
 2. Copie o conteúdo de `gee/detectar_pivos_jussara_gee.js`.
 3. Ajuste no bloco `CONFIG`:
    - `assetAmostrasRotuladas`: opção recomendada para a coleção criada pelo painel de marcação, contendo `classe = 1` e `classe = 0`.
-   - `assetPivosPositivos`: caminho de um asset **existente** com pivôs conhecidos; não use literalmente `users/SEU_USUARIO/...`.
+   - `assetPivosPositivos`: já está configurado para o SHP de pivôs fornecido,
+     `projects/sefazgogeoprocessamento/assets/final_pivos3`. Não use literalmente
+     `users/SEU_USUARIO/...`.
    - Se não tiver um asset, preencha `AMOSTRAS_POSITIVAS_INLINE` com geometrias desenhadas no Code Editor e altere `usarAmostrasPositivasInline` para `true`.
    - `assetAmostrasNegativas`: caminho opcional para amostras de não pivô.
    - O limite de Jussara é carregado por padrão da coleção pública `FAO/GAUL/2015/level2`; ajuste os campos apenas se trocar essa coleção.
@@ -51,7 +53,7 @@ O script [`gee/detectar_pivos_jussara_gee.js`](gee/detectar_pivos_jussara_gee.js
 
 O script [`gee/marcar_amostras_pivos_gee.js`](gee/marcar_amostras_pivos_gee.js)
 abre um painel de rotulagem no Code Editor. Nesse fluxo, os pivôs positivos vêm
-do SHP importado como `final_pivos3`; no mapa você desenha somente áreas negativas
+do Asset `projects/sefazgogeoprocessamento/assets/final_pivos3`; no mapa você desenha somente áreas negativas
 e usa o botão **Adicionar como NÃO PIVÔ** (`classe = 0`). Ao terminar, o painel
 combina os polígonos do SHP (`classe = 1`) com os desenhos (`classe = 0`) e exporta
 uma única coleção para Asset ou Drive.

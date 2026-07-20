@@ -23,7 +23,9 @@ var CONFIG = {
   // Se você usou marcar_amostras_pivos_gee.js, informe o asset combinado aqui;
   // ele deve conter a propriedade `classe` (1 = pivô; 0 = não pivô).
   assetAmostrasRotuladas: null,
-  assetPivosPositivos: null,
+  // SHP de pivôs fornecido para o projeto. O script o carrega diretamente;
+  // não é necessário importá-lo manualmente como uma variável no Code Editor.
+  assetPivosPositivos: 'projects/sefazgogeoprocessamento/assets/final_pivos3',
   usarAmostrasPositivasInline: false,
 
   // Sem amostras positivas, o script muda automaticamente para o modo não
@@ -55,10 +57,9 @@ var CONFIG = {
   ]
 };
 
-// Ao importar o SHP no Code Editor, defina o nome da variável como
-// `final_pivos3`. O `typeof` permite que o script também rode quando a importação
-// ainda não existe. O SHP é tratado como a classe positiva; as amostras negativas
-// continuam sendo geradas automaticamente quando não houver um asset negativo.
+// A importação manual como `final_pivos3` continua opcional. Quando existir, ela
+// tem prioridade sobre o Asset configurado acima, o que permite testar outra
+// coleção sem editar o restante do fluxo. O SHP é a classe positiva.
 var PIVOS_IMPORTADOS = typeof final_pivos3 !== 'undefined'
   ? ee.FeatureCollection(final_pivos3)
   : null;
