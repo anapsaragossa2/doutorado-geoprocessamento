@@ -49,6 +49,17 @@ O script [`gee/detectar_pivos_jussara_gee.js`](gee/detectar_pivos_jussara_gee.js
 4. Execute o script, valide as métricas impressas no console e ajuste as amostras caso haja confusão com áreas urbanas, bordas de lavouras ou corpos d'água.
 5. Rode a tarefa `Export.image.toDrive` na aba **Tasks**.
 
+#### Erro `Computed value is too large`
+
+O detector limita automaticamente o treinamento a 2.000 pontos de pivô e 2.000
+pontos de não pivô. Isso é importante porque usar `sampleRegions` diretamente em
+todos os pixels de muitos polígonos do SHP pode exceder o limite de cálculo do
+Earth Engine e impedir a matriz de confusão e a camada classificada de serem
+geradas. Se ainda for necessário reduzir o processamento, diminua
+`quantidadePontosPositivos` e `quantidadePontosNegativos` no `CONFIG` (por
+exemplo, para `1000`); não aumente esses valores antes de confirmar que o fluxo
+executa normalmente.
+
 ### Usar o SHP para pivôs e marcar somente não pivôs no GEE
 
 O script [`gee/marcar_amostras_pivos_gee.js`](gee/marcar_amostras_pivos_gee.js)

@@ -43,6 +43,10 @@ var CONFIG = {
 
   escala: 10,
   quantidadeNegativos: 700,
+  // Limita o treino a pontos, nunca a todos os pixels de polígonos grandes.
+  // Isso evita o erro do GEE "Computed value is too large".
+  quantidadePontosPositivos: 2000,
+  quantidadePontosNegativos: 2000,
   probabilidadeTreino: 0.7,
   sementes: {
     negativos: 42,
@@ -208,12 +212,36 @@ if (modoSupervisionado) {
   if (PIVOS_IMPORTADOS) {
     print('Fonte positiva', 'SHP importado na variável final_pivos3');
   }
+  // sampleRegions sobre polígonos usa TODOS os pixels dentro de cada polígono.
+  // Um SHP com muitos pivôs pode, portanto, ultrapassar o limite de computação
+  // do Earth Engine. Sorteamos uma quantidade fixa de pontos por classe antes de
+  // extrair as bandas; assim, custo e memória permanecem previsíveis.
+  var pontosPositivos = ee.FeatureCollection.randomPoints({
+    region: pivos.geometry(),
+    points: CONFIG.quantidadePontosPositivos,
+    seed: CONFIG.sementes.treinoTeste,
+    maxError: CONFIG.escala
+  }).map(function (feature) { return feature.set('classe', 1); });
+
+  // As amostras negativas geradas pelo script já são pontos. Para um asset de
+  // polígonos negativos, sorteie pontos dentro da sua geometria também.
+  var negativosSaoGerados = !amostrasRotuladas && !CONFIG.assetAmostrasNegativas;
+  var pontosNegativos = negativosSaoGerados
+    ? negativos.limit(CONFIG.quantidadePontosNegativos)
+    : ee.FeatureCollection.randomPoints({
+      region: negativos.geometry(),
+      points: CONFIG.quantidadePontosNegativos,
+      seed: CONFIG.sementes.treinoTeste + 1,
+      maxError: CONFIG.escala
+    }).map(function (feature) { return feature.set('classe', 0); });
+
+  var pontosTreinamento = pontosPositivos.merge(pontosNegativos);
+  print('Pontos usados no treinamento', pontosTreinamento.size());
   var dadosTreinamento = preditores.sampleRegions({
-    collection: amostras,
+    collection: pontosTreinamento,
     properties: ['classe'],
     scale: CONFIG.escala,
-    tileScale: 4,
-    geometries: true
+    tileScale: 4
   }).randomColumn('aleatorio', CONFIG.sementes.treinoTeste);
 
   var treino = dadosTreinamento.filter(ee.Filter.lt('aleatorio', CONFIG.probabilidadeTreino));
