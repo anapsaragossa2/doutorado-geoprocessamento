@@ -32,6 +32,8 @@ O script [`gee/detectar_pivos_jussara_gee.js`](gee/detectar_pivos_jussara_gee.js
 5. **Pós-processamento**
    - Classifica Jussara inteira.
    - Aplica filtros morfológicos (`focal_min` e `focal_max`) para reduzir ruídos isolados.
+   - Mostra no mapa o resultado final e as amostras de teste acertadas e erradas,
+     além de um painel com acurácia global, Kappa e total de amostras de teste.
    - Exporta o raster final para o Google Drive.
 
 ### Como usar
@@ -50,6 +52,26 @@ O script [`gee/detectar_pivos_jussara_gee.js`](gee/detectar_pivos_jussara_gee.js
    - O limite de Jussara é carregado por padrão da coleção pública `FAO/GAUL/2015/level2`; ajuste os campos apenas se trocar essa coleção.
 4. Execute o script, valide as métricas impressas no console e ajuste as amostras caso haja confusão com áreas urbanas, bordas de lavouras ou corpos d'água.
 5. Rode a tarefa `Export.image.toDrive` na aba **Tasks**.
+
+#### Conferir se o treinamento deu certo
+
+Após clicar em **Run**, mantenha a camada **Pivôs classificados por
+textura/forma** visível: ela é o resultado produzido pelo modelo na área de
+Jussara. O painel no canto inferior esquerdo mostra o total de amostras de teste,
+acurácia global e Kappa. Essas amostras foram separadas antes do treinamento.
+
+Para localizar visualmente os erros, habilite as camadas de validação:
+
+- **Verde:** pivô do teste detectado corretamente;
+- **Magenta:** pivô real que não foi detectado;
+- **Laranja:** não pivô que o modelo classificou como pivô;
+- **Cinza:** não pivô classificado corretamente.
+
+O resultado será mais confiável quando houver poucos pontos magenta e laranja. Se
+aparecerem vários pontos laranja sobre um mesmo tipo de cobertura, volte ao script
+de marcação e desenhe mais exemplos desse tipo como **NÃO PIVÔ**. Defina
+`mostrarValidacaoNoMapa: false` no `CONFIG` apenas se quiser ocultar essas
+camadas e o painel.
 
 #### Erro `Computed value is too large`
 

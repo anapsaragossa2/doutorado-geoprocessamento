@@ -49,6 +49,9 @@ var CONFIG = {
   // Isso evita o erro do GEE "Computed value is too large".
   quantidadePontosPositivos: 2000,
   quantidadePontosNegativos: 2000,
+  // Mostra no mapa e em um painel o resultado do teste que não participou do
+  // treinamento. Desative apenas se desejar uma interface mais limpa.
+  mostrarValidacaoNoMapa: true,
   probabilidadeTreino: 0.7,
   sementes: {
     negativos: 42,
@@ -206,6 +209,8 @@ var preditores = base.addBands(textura).select(CONFIG.bandasPreditoras);
 // 5. CLASSIFICAÇÃO SUPERVISIONADA OU DETECÇÃO CIRCULAR NÃO SUPERVISIONADA
 // -----------------------------------------------------------------------------
 var classificado;
+var resultadosTeste = ee.FeatureCollection([]);
+var matrizConfusao;
 
 if (modoSupervisionado) {
   print('Modo de detecção', 'Supervisionado (Random Forest)');
@@ -261,7 +266,8 @@ if (modoSupervisionado) {
     inputProperties: CONFIG.bandasPreditoras
   });
 
-  var matrizConfusao = teste.classify(classificador)
+  resultadosTeste = teste.classify(classificador);
+  matrizConfusao = resultadosTeste
     .errorMatrix('classe', 'classification');
   print('Matriz de confusão', matrizConfusao);
   print('Acurácia global', matrizConfusao.accuracy());
@@ -321,6 +327,68 @@ Map.addLayer(base, {bands: ['B4', 'B3', 'B2'], min: 0.02, max: 0.3}, 'Sentinel-2
 Map.addLayer(pivos, {color: '00ff00'}, 'Amostras positivas');
 Map.addLayer(negativos, {color: 'ff0000'}, 'Amostras negativas');
 Map.addLayer(pivosLimpos, {palette: ['00ffff']}, 'Pivôs classificados por textura/forma');
+
+// Mostra, sobre a imagem, se o modelo acertou as amostras reservadas para teste.
+// Esses pontos não foram usados para treinar o Random Forest, portanto são uma
+// forma direta de conferir visualmente se o treinamento funcionou.
+if (modoSupervisionado && CONFIG.mostrarValidacaoNoMapa) {
+  var verdadeirosPositivos = resultadosTeste
+    .filter(ee.Filter.eq('classe', 1))
+    .filter(ee.Filter.eq('classification', 1));
+  var falsosNegativos = resultadosTeste
+    .filter(ee.Filter.eq('classe', 1))
+    .filter(ee.Filter.eq('classification', 0));
+  var falsosPositivos = resultadosTeste
+    .filter(ee.Filter.eq('classe', 0))
+    .filter(ee.Filter.eq('classification', 1));
+  var verdadeirosNegativos = resultadosTeste
+    .filter(ee.Filter.eq('classe', 0))
+    .filter(ee.Filter.eq('classification', 0));
+
+  Map.addLayer(
+    verdadeirosPositivos.style({color: '00ff00', pointSize: 5}),
+    {}, 'Validação: pivôs acertados (verde)', false
+  );
+  Map.addLayer(
+    falsosNegativos.style({color: 'ff00ff', pointSize: 6}),
+    {}, 'Validação: pivôs não detectados (magenta)', true
+  );
+  Map.addLayer(
+    falsosPositivos.style({color: 'ff8800', pointSize: 6}),
+    {}, 'Validação: não pivôs confundidos com pivô (laranja)', true
+  );
+  Map.addLayer(
+    verdadeirosNegativos.style({color: '999999', pointSize: 4}),
+    {}, 'Validação: não pivôs acertados (cinza)', false
+  );
+
+  var painelResultado = ui.Panel({
+    style: {position: 'bottom-left', width: '330px', padding: '8px'}
+  });
+  var resumoValidacao = ui.Label('Calculando o resultado da validação...');
+  painelResultado.add(ui.Label('Resultado do treinamento', {
+    fontWeight: 'bold', fontSize: '16px'
+  }));
+  painelResultado.add(ui.Label(
+    'Verde: pivô acertado | Magenta: pivô não detectado | ' +
+    'Laranja: não pivô confundido com pivô.'
+  ));
+  painelResultado.add(resumoValidacao);
+  ui.root.add(painelResultado);
+
+  matrizConfusao.accuracy().evaluate(function(acuracia) {
+    matrizConfusao.kappa().evaluate(function(kappa) {
+      resultadosTeste.size().evaluate(function(total) {
+        resumoValidacao.setValue(
+          'Amostras de teste: ' + total + '\n' +
+          'Acurácia global: ' + Number(acuracia).toFixed(3) + '\n' +
+          'Kappa: ' + Number(kappa).toFixed(3) + '\n' +
+          'Veja também a Matriz de confusão no Console.'
+        );
+      });
+    });
+  });
+}
 
 Export.image.toDrive({
   image: pivosLimpos.toByte(),
