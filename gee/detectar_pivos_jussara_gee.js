@@ -22,7 +22,9 @@ var CONFIG = {
   // Nunca deixe aqui o texto de exemplo "users/SEU_USUARIO/...".
   // Se você usou marcar_amostras_pivos_gee.js, informe o asset combinado aqui;
   // ele deve conter a propriedade `classe` (1 = pivô; 0 = não pivô).
-  assetAmostrasRotuladas: null,
+  // Coleção exportada após a marcação manual: `classe` 1 = pivô e 0 = não pivô.
+  assetAmostrasRotuladas:
+    'projects/sefazgogeoprocessamento/assets/amostras_pivos_jussara',
   // SHP de pivôs fornecido para o projeto. O script o carrega diretamente;
   // não é necessário importá-lo manualmente como uma variável no Code Editor.
   assetPivosPositivos: 'projects/sefazgogeoprocessamento/assets/final_pivos3',

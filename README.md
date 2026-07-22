@@ -39,7 +39,9 @@ O script [`gee/detectar_pivos_jussara_gee.js`](gee/detectar_pivos_jussara_gee.js
 1. Abra o [Google Earth Engine Code Editor](https://code.earthengine.google.com/).
 2. Copie o conteúdo de `gee/detectar_pivos_jussara_gee.js`.
 3. Ajuste no bloco `CONFIG`:
-   - `assetAmostrasRotuladas`: opção recomendada para a coleção criada pelo painel de marcação, contendo `classe = 1` e `classe = 0`.
+   - `assetAmostrasRotuladas`: já está configurado para
+     `projects/sefazgogeoprocessamento/assets/amostras_pivos_jussara`, a coleção
+     criada pela marcação manual, contendo `classe = 1` e `classe = 0`.
    - `assetPivosPositivos`: já está configurado para o SHP de pivôs fornecido,
      `projects/sefazgogeoprocessamento/assets/final_pivos3`. Não use literalmente
      `users/SEU_USUARIO/...`.
