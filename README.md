@@ -30,8 +30,10 @@ O script [`gee/detectar_pivos_jussara_gee.js`](gee/detectar_pivos_jussara_gee.js
    - Sem amostras, usa bordas Canny e estatísticas em um kernel circular para produzir candidatos sem interromper a execução.
 
 5. **Pós-processamento**
-   - Classifica Jussara inteira.
-   - Aplica filtros morfológicos (`focal_min` e `focal_max`) para reduzir ruídos isolados.
+   - O Random Forest identifica apenas candidatos; ele não é o resultado final.
+   - Agrupa os pixels candidatos em objetos, descarta objetos fora da faixa de
+     área e calcula circularidade `4π × área / perímetro²`.
+   - Mantém somente objetos com área e forma compatíveis com pivôs centrais.
    - Mostra no mapa o resultado final e as amostras de teste acertadas e erradas,
      além de um painel com acurácia global, Kappa e total de amostras de teste.
    - Exporta o raster final para o Google Drive.
@@ -53,11 +55,39 @@ O script [`gee/detectar_pivos_jussara_gee.js`](gee/detectar_pivos_jussara_gee.js
 4. Execute o script, valide as métricas impressas no console e ajuste as amostras caso haja confusão com áreas urbanas, bordas de lavouras ou corpos d'água.
 5. Rode a tarefa `Export.image.toDrive` na aba **Tasks**.
 
+#### Treinamento com a coleção correta e decisão por forma
+
+O treinamento supervisionado usa a coleção de amostras rotuladas:
+
+```text
+projects/sefazgogeoprocessamento/assets/amostras_pivos_jussara
+```
+
+Ela deve ter a propriedade `classe`, com `1` para pivô e `0` para não pivô. Um
+arquivo ZIP (`pivo.zip`) não é um Asset de treinamento para o Earth Engine e não
+deve ser informado em `assetAmostrasRotuladas`.
+
+O resultado exportado agora é **por objeto**. O Random Forest ainda produz os
+pixels candidatos a partir da imagem Sentinel-2, mas o mapa e o arquivo final só
+mantêm os objetos que passam por área e circularidade. Ajuste no `CONFIG`:
+
+```javascript
+areaMinimaHa: 8,
+areaMaximaHa: 600,
+circularidadeMinima: 0.55,
+```
+
+Comece com esses valores e compare a camada **Candidatos antes da forma** com a
+camada **Pivôs finais aprovados por forma**. Se pivôs reais forem removidos,
+reduza `circularidadeMinima` para `0.45`; se lavouras retangulares continuarem,
+aumente-a para `0.65`. A camada de diagnóstico mostra os objetos antes da decisão
+final.
+
 #### Conferir se o treinamento deu certo
 
-Após clicar em **Run**, mantenha a camada **Pivôs classificados por
-textura/forma** visível: ela é o resultado produzido pelo modelo na área de
-Jussara. O painel no canto inferior esquerdo mostra o total de amostras de teste,
+Após clicar em **Run**, mantenha a camada **Pivôs finais aprovados por forma**
+visível: ela é o resultado produzido pelo modelo na área de Jussara. O painel no
+canto inferior esquerdo mostra o total de amostras de teste,
 acurácia global e Kappa. Essas amostras foram separadas antes do treinamento.
 
 Para localizar visualmente os erros, habilite as camadas de validação:

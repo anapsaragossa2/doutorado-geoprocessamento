@@ -49,6 +49,15 @@ var CONFIG = {
   // Isso evita o erro do GEE "Computed value is too large".
   quantidadePontosPositivos: 2000,
   quantidadePontosNegativos: 2000,
+  // A decisão final é tomada por OBJETO, não por pixels isolados. Os pixels do
+  // Random Forest apenas geram candidatos; cada candidato precisa atender às
+  // regras de área e circularidade abaixo para ser mantido no resultado final.
+  usarConfirmacaoPorForma: true,
+  escalaObjetos: 30,
+  areaMinimaHa: 8,
+  areaMaximaHa: 600,
+  circularidadeMinima: 0.55,
+  maxPixelsPorObjeto: 20000,
   // Mostra no mapa e em um painel o resultado do teste que não participou do
   // treinamento. Desative apenas se desejar uma interface mais limpa.
   mostrarValidacaoNoMapa: true,
@@ -320,13 +329,100 @@ var pivosLimpos = classificado.eq(1)
   .rename('pivos_centrais');
 
 // -----------------------------------------------------------------------------
-// 6. VISUALIZAÇÃO E EXPORTAÇÃO
+// 6. CONFIRMAÇÃO POR FORMA: DECISÃO FINAL POR OBJETO
+// -----------------------------------------------------------------------------
+// O Random Forest serve somente para localizar candidatos. Nesta etapa, pixels
+// vizinhos são agrupados, transformados em objetos e filtrados por área e
+// circularidade. Assim, uma textura parecida com agricultura não basta: o
+// candidato final precisa também ter a forma compatível com um pivô central.
+var objetosCandidatos = ee.FeatureCollection([]);
+var pivosPorForma = pivosLimpos;
+if (CONFIG.usarConfirmacaoPorForma) {
+  var pixelsMinimos = Math.max(
+    1,
+    Math.ceil(CONFIG.areaMinimaHa * 10000 /
+      (CONFIG.escalaObjetos * CONFIG.escalaObjetos))
+  );
+  var pixelsMaximos = Math.min(
+    CONFIG.maxPixelsPorObjeto,
+    Math.floor(CONFIG.areaMaximaHa * 10000 /
+      (CONFIG.escalaObjetos * CONFIG.escalaObjetos))
+  );
+  var classificacaoObjetos = pivosLimpos.reproject({
+    crs: mosaico.projection(),
+    scale: CONFIG.escalaObjetos
+  });
+  // A triagem raster evita vetorização de milhares de ruídos pequenos.
+  var tamanhoComponente = classificacaoObjetos.connectedPixelCount({
+    maxSize: CONFIG.maxPixelsPorObjeto,
+    eightConnected: true
+  });
+  var candidatosPorArea = classificacaoObjetos
+    .updateMask(tamanhoComponente.gte(pixelsMinimos))
+    .updateMask(tamanhoComponente.lte(pixelsMaximos))
+    .rename('candidatos_por_area');
+
+  objetosCandidatos = candidatosPorArea.toByte().reduceToVectors({
+    geometry: geometriaJussara,
+    scale: CONFIG.escalaObjetos,
+    geometryType: 'polygon',
+    eightConnected: true,
+    labelProperty: 'classe_raster',
+    reducer: ee.Reducer.countEvery(),
+    maxPixels: 1e10,
+    tileScale: 4
+  }).map(function(feature) {
+    var geometria = feature.geometry();
+    var areaM2 = geometria.area(1);
+    var perimetroM = geometria.perimeter(1);
+    var circularidade = ee.Number(4 * Math.PI)
+      .multiply(areaM2)
+      .divide(perimetroM.pow(2));
+    return feature.set({
+      area_ha: areaM2.divide(10000),
+      perimetro_m: perimetroM,
+      circularidade: circularidade
+    });
+  });
+
+  var objetosAprovados = objetosCandidatos
+    .filter(ee.Filter.gte('area_ha', CONFIG.areaMinimaHa))
+    .filter(ee.Filter.lte('area_ha', CONFIG.areaMaximaHa))
+    .filter(ee.Filter.gte('circularidade', CONFIG.circularidadeMinima));
+
+  pivosPorForma = ee.Image(0).byte()
+    .paint(objetosAprovados, 1)
+    .selfMask()
+    .rename('pivos_centrais_por_forma');
+  print('Objetos aprovados por área e circularidade', objetosAprovados.size());
+  print('Parâmetros da confirmação por forma', {
+    area_minima_ha: CONFIG.areaMinimaHa,
+    area_maxima_ha: CONFIG.areaMaximaHa,
+    circularidade_minima: CONFIG.circularidadeMinima
+  });
+  Map.addLayer(
+    candidatosPorArea,
+    {palette: ['ff00ff']},
+    'Diagnóstico: candidatos após filtro de área',
+    false
+  );
+  Map.addLayer(
+    objetosCandidatos.style({color: 'ff9900', fillColor: '00000000'}),
+    {},
+    'Diagnóstico: objetos antes do filtro de circularidade',
+    false
+  );
+}
+
+// -----------------------------------------------------------------------------
+// 7. VISUALIZAÇÃO E EXPORTAÇÃO
 // -----------------------------------------------------------------------------
 Map.centerObject(jussara, 11);
 Map.addLayer(base, {bands: ['B4', 'B3', 'B2'], min: 0.02, max: 0.3}, 'Sentinel-2 RGB 2025');
 Map.addLayer(pivos, {color: '00ff00'}, 'Amostras positivas');
 Map.addLayer(negativos, {color: 'ff0000'}, 'Amostras negativas');
-Map.addLayer(pivosLimpos, {palette: ['00ffff']}, 'Pivôs classificados por textura/forma');
+Map.addLayer(pivosLimpos, {palette: ['888888']}, 'Candidatos antes da forma', false);
+Map.addLayer(pivosPorForma, {palette: ['00ffff']}, 'Pivôs finais aprovados por forma');
 
 // Mostra, sobre a imagem, se o modelo acertou as amostras reservadas para teste.
 // Esses pontos não foram usados para treinar o Random Forest, portanto são uma
@@ -391,10 +487,10 @@ if (modoSupervisionado && CONFIG.mostrarValidacaoNoMapa) {
 }
 
 Export.image.toDrive({
-  image: pivosLimpos.toByte(),
-  description: 'pivos_textura_forma_jussara_' + CONFIG.ano,
+  image: pivosPorForma.toByte(),
+  description: 'pivos_por_forma_jussara_' + CONFIG.ano,
   folder: 'GEE_exports',
-  fileNamePrefix: 'pivos_textura_forma_jussara_' + CONFIG.ano,
+  fileNamePrefix: 'pivos_por_forma_jussara_' + CONFIG.ano,
   region: geometriaJussara,
   scale: CONFIG.escala,
   maxPixels: 1e13
