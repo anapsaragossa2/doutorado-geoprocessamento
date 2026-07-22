@@ -141,14 +141,20 @@ Se você executar etapas do Earth Engine pela API Python, inicialize o `ee` com 
 
 ```python
 import ee
-from google.colab import userdata
-from gee.earth_engine_colab_init import initialize_earth_engine
 
-PROJECT_ID = userdata.get('EE_PROJECT_ID')  # ou use 'meu-projeto-gcp' diretamente
-initialize_earth_engine(PROJECT_ID)
+PROJECT_ID = 'sefazgogeoprocessamento'
+ee.Authenticate()
+ee.Initialize(project=PROJECT_ID)
 ```
 
-Antes de rodar o notebook, habilite o Earth Engine no projeto Google Cloud escolhido e, no Colab, salve o ID em **Secrets** com o nome `EE_PROJECT_ID` ou passe o valor diretamente para `initialize_earth_engine()`.
+Os dois notebooks do repositório já incluem essa célula como a primeira etapa
+executável. Execute-a antes de qualquer célula que use `ee.*`; não use
+`ee.Initialize()` sem o argumento `project=`, pois isso reproduz o erro de
+"no project found".
+
+Antes de rodar o notebook, confirme que o Earth Engine está habilitado no projeto
+Google Cloud `sefazgogeoprocessamento`. Se você usar outro projeto no futuro,
+altere somente a linha `PROJECT_ID = '...'` da primeira célula do notebook.
 
 
 ### Treinamento a partir de um ZIP no Colab
