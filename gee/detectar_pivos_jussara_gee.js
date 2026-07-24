@@ -1,0 +1,497 @@
+/****
+ * Detecção de pivôs centrais por textura e forma em Jussara-GO (Sentinel-2, 2025)
+ *
+ * Cole este script no Google Earth Engine Code Editor. A área municipal usa uma
+ * coleção pública; somente as amostras positivas precisam ser informadas.
+ ****/
+
+// -----------------------------------------------------------------------------
+// 1. CONFIGURAÇÃO
+// -----------------------------------------------------------------------------
+var CONFIG = {
+  ano: 2025,
+  municipioNome: 'Jussara',
+
+  // Limites administrativos públicos disponíveis no catálogo do Earth Engine.
+  municipios: 'FAO/GAUL/2015/level2',
+  campoMunicipio: 'ADM2_NAME',
+  campoEstado: 'ADM1_NAME',
+  estadoNome: 'Goias',
+
+  // Informe um asset real OU use as amostras inline definidas logo abaixo.
+  // Nunca deixe aqui o texto de exemplo "users/SEU_USUARIO/...".
+  // Se você usou marcar_amostras_pivos_gee.js, informe o asset combinado aqui;
+  // ele deve conter a propriedade `classe` (1 = pivô; 0 = não pivô).
+  // Coleção exportada após a marcação manual: `classe` 1 = pivô e 0 = não pivô.
+  assetAmostrasRotuladas:
+    'projects/sefazgogeoprocessamento/assets/amostras_pivos_jussara',
+  // SHP de pivôs fornecido para o projeto. O script o carrega diretamente;
+  // não é necessário importá-lo manualmente como uma variável no Code Editor.
+  assetPivosPositivos: 'projects/sefazgogeoprocessamento/assets/final_pivos3',
+  usarAmostrasPositivasInline: false,
+
+  // Sem amostras positivas, o script muda automaticamente para o modo não
+  // supervisionado e procura bordas/variação dentro de uma janela circular.
+  raioCircularPixels: 35,
+  limiarCanny: 0.08,
+  densidadeBordaMinima: 0.025,
+  densidadeBordaMaxima: 0.35,
+  desvioNdviMinimo: 0.035,
+
+  // Opcional: substitua por polígonos/pontos de não pivô (pastagem, mata, urbano etc.).
+  // Com null, o script gera amostras negativas aleatórias. Um caminho inexistente
+  // sempre produz Collection.loadTable; portanto, não use um placeholder aqui.
+  assetAmostrasNegativas: null,
+
+  escala: 10,
+  quantidadeNegativos: 700,
+  // Limita o treino a pontos, nunca a todos os pixels de polígonos grandes.
+  // Isso evita o erro do GEE "Computed value is too large".
+  quantidadePontosPositivos: 2000,
+  quantidadePontosNegativos: 2000,
+  // A decisão final é tomada por OBJETO, não por pixels isolados. Os pixels do
+  // Random Forest apenas geram candidatos; cada candidato precisa atender às
+  // regras de área e circularidade abaixo para ser mantido no resultado final.
+  usarConfirmacaoPorForma: true,
+  escalaObjetos: 30,
+  areaMinimaHa: 8,
+  areaMaximaHa: 600,
+  circularidadeMinima: 0.55,
+  maxPixelsPorObjeto: 20000,
+  // Mostra no mapa e em um painel o resultado do teste que não participou do
+  // treinamento. Desative apenas se desejar uma interface mais limpa.
+  mostrarValidacaoNoMapa: true,
+  probabilidadeTreino: 0.7,
+  sementes: {
+    negativos: 42,
+    treinoTeste: 13,
+    randomForest: 27
+  },
+
+  bandasPreditoras: [
+    'B2', 'B3', 'B4', 'B8', 'NDVI', 'NDWI',
+    'B8_contrast', 'B8_corr', 'B8_ent', 'NDVI_contrast', 'NDVI_corr', 'NDVI_ent',
+    'B8_stdDev_3', 'B8_stdDev_7', 'NDVI_stdDev_3', 'NDVI_stdDev_7'
+  ]
+};
+
+// A importação manual como `final_pivos3` continua opcional. Quando existir, ela
+// tem prioridade sobre o Asset configurado acima, o que permite testar outra
+// coleção sem editar o restante do fluxo. O SHP é a classe positiva.
+var PIVOS_IMPORTADOS = typeof final_pivos3 !== 'undefined'
+  ? ee.FeatureCollection(final_pivos3)
+  : null;
+
+// Alternativa ao asset: cole aqui pontos ou polígonos desenhados/importados no
+// Code Editor e altere `usarAmostrasPositivasInline` para true. Exemplo:
+// ee.Feature(ee.Geometry.Point([-50.0, -15.0]))
+var AMOSTRAS_POSITIVAS_INLINE = ee.FeatureCollection([
+  // ee.Feature(geometry1),
+  // ee.Feature(geometry2)
+]);
+
+var modoSupervisionado = Boolean(
+  CONFIG.assetAmostrasRotuladas ||
+  PIVOS_IMPORTADOS ||
+  CONFIG.assetPivosPositivos ||
+  CONFIG.usarAmostrasPositivasInline
+);
+
+// -----------------------------------------------------------------------------
+// 2. ÁREA DE ESTUDO E AMOSTRAS
+// -----------------------------------------------------------------------------
+var municipios = ee.FeatureCollection(CONFIG.municipios);
+var jussara = municipios
+  .filter(ee.Filter.eq(CONFIG.campoMunicipio, CONFIG.municipioNome))
+  .filter(ee.Filter.eq(CONFIG.campoEstado, CONFIG.estadoNome));
+var geometriaJussara = jussara.geometry();
+
+var amostrasRotuladas = CONFIG.assetAmostrasRotuladas
+  ? ee.FeatureCollection(CONFIG.assetAmostrasRotuladas).filterBounds(geometriaJussara)
+  : null;
+
+var colecaoPivos = modoSupervisionado
+  ? (amostrasRotuladas
+    ? amostrasRotuladas.filter(ee.Filter.eq('classe', 1))
+    : (PIVOS_IMPORTADOS
+    ? PIVOS_IMPORTADOS
+    : (CONFIG.assetPivosPositivos
+    ? ee.FeatureCollection(CONFIG.assetPivosPositivos)
+    : AMOSTRAS_POSITIVAS_INLINE)))
+  : ee.FeatureCollection([]);
+
+var pivos = colecaoPivos
+  .filterBounds(geometriaJussara)
+  .map(function (feature) {
+    return feature.set('classe', 1);
+  });
+
+var negativos = ee.FeatureCollection([]);
+if (modoSupervisionado) {
+  negativos = amostrasRotuladas
+    ? amostrasRotuladas.filter(ee.Filter.eq('classe', 0))
+    : (CONFIG.assetAmostrasNegativas
+    ? ee.FeatureCollection(CONFIG.assetAmostrasNegativas)
+      .filterBounds(geometriaJussara)
+      .map(function (feature) { return feature.set('classe', 0); })
+    : ee.FeatureCollection.randomPoints({
+      region: geometriaJussara.difference(pivos.geometry().buffer(250), 1),
+      points: CONFIG.quantidadeNegativos,
+      seed: CONFIG.sementes.negativos,
+      maxError: 10
+    }).map(function (feature) { return feature.set('classe', 0); }));
+}
+
+var amostras = pivos.merge(negativos);
+
+// -----------------------------------------------------------------------------
+// 3. MOSAICO SENTINEL-2 LIVRE DE NUVENS
+// -----------------------------------------------------------------------------
+function mascararS2Sr(image) {
+  var scl = image.select('SCL');
+  var mascaraScl = scl.neq(3)   // sombra de nuvem
+    .and(scl.neq(8))            // nuvem média probabilidade
+    .and(scl.neq(9))            // nuvem alta probabilidade
+    .and(scl.neq(10))           // cirrus
+    .and(scl.neq(11));          // neve/gelo
+
+  var qa = image.select('QA60');
+  var mascaraQa = qa.bitwiseAnd(1 << 10).eq(0)
+    .and(qa.bitwiseAnd(1 << 11).eq(0));
+
+  return image.updateMask(mascaraScl.and(mascaraQa))
+    .select(['B2', 'B3', 'B4', 'B8'])
+    .multiply(0.0001)
+    .copyProperties(image, ['system:time_start']);
+}
+
+var inicio = ee.Date.fromYMD(CONFIG.ano, 1, 1);
+var fim = inicio.advance(1, 'year');
+
+var sentinel2 = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED')
+  .filterBounds(geometriaJussara)
+  .filterDate(inicio, fim)
+  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 40))
+  .map(mascararS2Sr);
+
+var mosaico = sentinel2.median().clip(geometriaJussara);
+var ndvi = mosaico.normalizedDifference(['B8', 'B4']).rename('NDVI');
+var ndwi = mosaico.normalizedDifference(['B3', 'B8']).rename('NDWI');
+var base = mosaico.addBands([ndvi, ndwi]);
+
+// -----------------------------------------------------------------------------
+// 4. MÉTRICAS DE TEXTURA E FORMATO
+// -----------------------------------------------------------------------------
+function texturaGlcm(image, banda) {
+  return image.select(banda)
+    .unitScale(-0.2, 0.9)
+    .multiply(255)
+    .toUint8()
+    .glcmTexture({size: 5})
+    .select([
+      banda + '_contrast',
+      banda + '_corr',
+      banda + '_ent'
+    ]);
+}
+
+function desvioPadrao(image, banda, raioPixels) {
+  return image.select(banda)
+    .reduceNeighborhood({
+      reducer: ee.Reducer.stdDev(),
+      kernel: ee.Kernel.circle({radius: raioPixels, units: 'pixels'}),
+      skipMasked: true
+    })
+    .rename(banda + '_stdDev_' + raioPixels);
+}
+
+var textura = texturaGlcm(base, 'B8')
+  .addBands(texturaGlcm(base, 'NDVI'))
+  .addBands(desvioPadrao(base, 'B8', 3))
+  .addBands(desvioPadrao(base, 'B8', 7))
+  .addBands(desvioPadrao(base, 'NDVI', 3))
+  .addBands(desvioPadrao(base, 'NDVI', 7));
+
+var preditores = base.addBands(textura).select(CONFIG.bandasPreditoras);
+
+// -----------------------------------------------------------------------------
+// 5. CLASSIFICAÇÃO SUPERVISIONADA OU DETECÇÃO CIRCULAR NÃO SUPERVISIONADA
+// -----------------------------------------------------------------------------
+var classificado;
+var resultadosTeste = ee.FeatureCollection([]);
+var matrizConfusao;
+
+if (modoSupervisionado) {
+  print('Modo de detecção', 'Supervisionado (Random Forest)');
+  print('Quantidade de feições positivas', pivos.size());
+  print('Quantidade de feições negativas', negativos.size());
+  if (PIVOS_IMPORTADOS) {
+    print('Fonte positiva', 'SHP importado na variável final_pivos3');
+  }
+  // sampleRegions sobre polígonos usa TODOS os pixels dentro de cada polígono.
+  // Um SHP com muitos pivôs pode, portanto, ultrapassar o limite de computação
+  // do Earth Engine. Sorteamos uma quantidade fixa de pontos por classe antes de
+  // extrair as bandas; assim, custo e memória permanecem previsíveis.
+  var pontosPositivos = ee.FeatureCollection.randomPoints({
+    region: pivos.geometry(),
+    points: CONFIG.quantidadePontosPositivos,
+    seed: CONFIG.sementes.treinoTeste,
+    maxError: CONFIG.escala
+  }).map(function (feature) { return feature.set('classe', 1); });
+
+  // As amostras negativas geradas pelo script já são pontos. Para um asset de
+  // polígonos negativos, sorteie pontos dentro da sua geometria também.
+  var negativosSaoGerados = !amostrasRotuladas && !CONFIG.assetAmostrasNegativas;
+  var pontosNegativos = negativosSaoGerados
+    ? negativos.limit(CONFIG.quantidadePontosNegativos)
+    : ee.FeatureCollection.randomPoints({
+      region: negativos.geometry(),
+      points: CONFIG.quantidadePontosNegativos,
+      seed: CONFIG.sementes.treinoTeste + 1,
+      maxError: CONFIG.escala
+    }).map(function (feature) { return feature.set('classe', 0); });
+
+  var pontosTreinamento = pontosPositivos.merge(pontosNegativos);
+  print('Pontos usados no treinamento', pontosTreinamento.size());
+  var dadosTreinamento = preditores.sampleRegions({
+    collection: pontosTreinamento,
+    properties: ['classe'],
+    scale: CONFIG.escala,
+    tileScale: 4
+  }).randomColumn('aleatorio', CONFIG.sementes.treinoTeste);
+
+  var treino = dadosTreinamento.filter(ee.Filter.lt('aleatorio', CONFIG.probabilidadeTreino));
+  var teste = dadosTreinamento.filter(ee.Filter.gte('aleatorio', CONFIG.probabilidadeTreino));
+
+  var classificador = ee.Classifier.smileRandomForest({
+    numberOfTrees: 250,
+    variablesPerSplit: 5,
+    minLeafPopulation: 2,
+    bagFraction: 0.65,
+    seed: CONFIG.sementes.randomForest
+  }).train({
+    features: treino,
+    classProperty: 'classe',
+    inputProperties: CONFIG.bandasPreditoras
+  });
+
+  resultadosTeste = teste.classify(classificador);
+  matrizConfusao = resultadosTeste
+    .errorMatrix('classe', 'classification');
+  print('Matriz de confusão', matrizConfusao);
+  print('Acurácia global', matrizConfusao.accuracy());
+  print('Kappa', matrizConfusao.kappa());
+  print('Importância das variáveis', classificador.explain().get('importance'));
+  classificado = preditores.classify(classificador).rename('pivo');
+} else {
+  print(
+    'Modo de detecção',
+    'Não supervisionado: correlação espacial em janela circular (sem matriz de confusão)'
+  );
+
+  var bordasNdvi = ee.Algorithms.CannyEdgeDetector({
+    image: ndvi,
+    threshold: CONFIG.limiarCanny,
+    sigma: 1
+  });
+  var kernelCircular = ee.Kernel.circle({
+    radius: CONFIG.raioCircularPixels,
+    units: 'pixels',
+    normalize: true
+  });
+  var densidadeBordas = bordasNdvi.reduceNeighborhood({
+    reducer: ee.Reducer.mean(),
+    kernel: kernelCircular,
+    skipMasked: true
+  }).rename('densidade_bordas_circular');
+  var variacaoCircular = ndvi.reduceNeighborhood({
+    reducer: ee.Reducer.stdDev(),
+    kernel: kernelCircular,
+    skipMasked: true
+  }).rename('variacao_ndvi_circular');
+
+  classificado = densidadeBordas.gte(CONFIG.densidadeBordaMinima)
+    .and(densidadeBordas.lte(CONFIG.densidadeBordaMaxima))
+    .and(variacaoCircular.gte(CONFIG.desvioNdviMinimo))
+    .rename('pivo');
+
+  Map.addLayer(
+    densidadeBordas,
+    {min: 0, max: CONFIG.densidadeBordaMaxima, palette: ['000000', 'ffff00', 'ff0000']},
+    'Diagnóstico: densidade de bordas circular',
+    false
+  );
+}
+var pivosLimpos = classificado.eq(1)
+  .focal_min({radius: 1, units: 'pixels'})
+  .focal_max({radius: 2, units: 'pixels'})
+  .selfMask()
+  .rename('pivos_centrais');
+
+// -----------------------------------------------------------------------------
+// 6. CONFIRMAÇÃO POR FORMA: DECISÃO FINAL POR OBJETO
+// -----------------------------------------------------------------------------
+// O Random Forest serve somente para localizar candidatos. Nesta etapa, pixels
+// vizinhos são agrupados, transformados em objetos e filtrados por área e
+// circularidade. Assim, uma textura parecida com agricultura não basta: o
+// candidato final precisa também ter a forma compatível com um pivô central.
+var objetosCandidatos = ee.FeatureCollection([]);
+var pivosPorForma = pivosLimpos;
+if (CONFIG.usarConfirmacaoPorForma) {
+  var pixelsMinimos = Math.max(
+    1,
+    Math.ceil(CONFIG.areaMinimaHa * 10000 /
+      (CONFIG.escalaObjetos * CONFIG.escalaObjetos))
+  );
+  var pixelsMaximos = Math.min(
+    CONFIG.maxPixelsPorObjeto,
+    Math.floor(CONFIG.areaMaximaHa * 10000 /
+      (CONFIG.escalaObjetos * CONFIG.escalaObjetos))
+  );
+  var classificacaoObjetos = pivosLimpos.reproject({
+    crs: mosaico.projection(),
+    scale: CONFIG.escalaObjetos
+  });
+  // A triagem raster evita vetorização de milhares de ruídos pequenos.
+  var tamanhoComponente = classificacaoObjetos.connectedPixelCount({
+    maxSize: CONFIG.maxPixelsPorObjeto,
+    eightConnected: true
+  });
+  var candidatosPorArea = classificacaoObjetos
+    .updateMask(tamanhoComponente.gte(pixelsMinimos))
+    .updateMask(tamanhoComponente.lte(pixelsMaximos))
+    .rename('candidatos_por_area');
+
+  objetosCandidatos = candidatosPorArea.toByte().reduceToVectors({
+    geometry: geometriaJussara,
+    scale: CONFIG.escalaObjetos,
+    geometryType: 'polygon',
+    eightConnected: true,
+    labelProperty: 'classe_raster',
+    reducer: ee.Reducer.countEvery(),
+    maxPixels: 1e10,
+    tileScale: 4
+  }).map(function(feature) {
+    var geometria = feature.geometry();
+    var areaM2 = geometria.area(1);
+    var perimetroM = geometria.perimeter(1);
+    var circularidade = ee.Number(4 * Math.PI)
+      .multiply(areaM2)
+      .divide(perimetroM.pow(2));
+    return feature.set({
+      area_ha: areaM2.divide(10000),
+      perimetro_m: perimetroM,
+      circularidade: circularidade
+    });
+  });
+
+  var objetosAprovados = objetosCandidatos
+    .filter(ee.Filter.gte('area_ha', CONFIG.areaMinimaHa))
+    .filter(ee.Filter.lte('area_ha', CONFIG.areaMaximaHa))
+    .filter(ee.Filter.gte('circularidade', CONFIG.circularidadeMinima));
+
+  pivosPorForma = ee.Image(0).byte()
+    .paint(objetosAprovados, 1)
+    .selfMask()
+    .rename('pivos_centrais_por_forma');
+  print('Objetos aprovados por área e circularidade', objetosAprovados.size());
+  print('Parâmetros da confirmação por forma', {
+    area_minima_ha: CONFIG.areaMinimaHa,
+    area_maxima_ha: CONFIG.areaMaximaHa,
+    circularidade_minima: CONFIG.circularidadeMinima
+  });
+  Map.addLayer(
+    candidatosPorArea,
+    {palette: ['ff00ff']},
+    'Diagnóstico: candidatos após filtro de área',
+    false
+  );
+  Map.addLayer(
+    objetosCandidatos.style({color: 'ff9900', fillColor: '00000000'}),
+    {},
+    'Diagnóstico: objetos antes do filtro de circularidade',
+    false
+  );
+}
+
+// -----------------------------------------------------------------------------
+// 7. VISUALIZAÇÃO E EXPORTAÇÃO
+// -----------------------------------------------------------------------------
+Map.centerObject(jussara, 11);
+Map.addLayer(base, {bands: ['B4', 'B3', 'B2'], min: 0.02, max: 0.3}, 'Sentinel-2 RGB 2025');
+Map.addLayer(pivos, {color: '00ff00'}, 'Amostras positivas');
+Map.addLayer(negativos, {color: 'ff0000'}, 'Amostras negativas');
+Map.addLayer(pivosLimpos, {palette: ['888888']}, 'Candidatos antes da forma', false);
+Map.addLayer(pivosPorForma, {palette: ['00ffff']}, 'Pivôs finais aprovados por forma');
+
+// Mostra, sobre a imagem, se o modelo acertou as amostras reservadas para teste.
+// Esses pontos não foram usados para treinar o Random Forest, portanto são uma
+// forma direta de conferir visualmente se o treinamento funcionou.
+if (modoSupervisionado && CONFIG.mostrarValidacaoNoMapa) {
+  var verdadeirosPositivos = resultadosTeste
+    .filter(ee.Filter.eq('classe', 1))
+    .filter(ee.Filter.eq('classification', 1));
+  var falsosNegativos = resultadosTeste
+    .filter(ee.Filter.eq('classe', 1))
+    .filter(ee.Filter.eq('classification', 0));
+  var falsosPositivos = resultadosTeste
+    .filter(ee.Filter.eq('classe', 0))
+    .filter(ee.Filter.eq('classification', 1));
+  var verdadeirosNegativos = resultadosTeste
+    .filter(ee.Filter.eq('classe', 0))
+    .filter(ee.Filter.eq('classification', 0));
+
+  Map.addLayer(
+    verdadeirosPositivos.style({color: '00ff00', pointSize: 5}),
+    {}, 'Validação: pivôs acertados (verde)', false
+  );
+  Map.addLayer(
+    falsosNegativos.style({color: 'ff00ff', pointSize: 6}),
+    {}, 'Validação: pivôs não detectados (magenta)', true
+  );
+  Map.addLayer(
+    falsosPositivos.style({color: 'ff8800', pointSize: 6}),
+    {}, 'Validação: não pivôs confundidos com pivô (laranja)', true
+  );
+  Map.addLayer(
+    verdadeirosNegativos.style({color: '999999', pointSize: 4}),
+    {}, 'Validação: não pivôs acertados (cinza)', false
+  );
+
+  var painelResultado = ui.Panel({
+    style: {position: 'bottom-left', width: '330px', padding: '8px'}
+  });
+  var resumoValidacao = ui.Label('Calculando o resultado da validação...');
+  painelResultado.add(ui.Label('Resultado do treinamento', {
+    fontWeight: 'bold', fontSize: '16px'
+  }));
+  painelResultado.add(ui.Label(
+    'Verde: pivô acertado | Magenta: pivô não detectado | ' +
+    'Laranja: não pivô confundido com pivô.'
+  ));
+  painelResultado.add(resumoValidacao);
+  ui.root.add(painelResultado);
+
+  matrizConfusao.accuracy().evaluate(function(acuracia) {
+    matrizConfusao.kappa().evaluate(function(kappa) {
+      resultadosTeste.size().evaluate(function(total) {
+        resumoValidacao.setValue(
+          'Amostras de teste: ' + total + '\n' +
+          'Acurácia global: ' + Number(acuracia).toFixed(3) + '\n' +
+          'Kappa: ' + Number(kappa).toFixed(3) + '\n' +
+          'Veja também a Matriz de confusão no Console.'
+        );
+      });
+    });
+  });
+}
+
+Export.image.toDrive({
+  image: pivosPorForma.toByte(),
+  description: 'pivos_por_forma_jussara_' + CONFIG.ano,
+  folder: 'GEE_exports',
+  fileNamePrefix: 'pivos_por_forma_jussara_' + CONFIG.ano,
+  region: geometriaJussara,
+  scale: CONFIG.escala,
+  maxPixels: 1e13
+});
